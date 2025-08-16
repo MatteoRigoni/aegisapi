@@ -1,36 +1,36 @@
-\# AegisAPI – Secure API Gateway with AI Remediation
+# AegisAPI – Secure API Gateway with AI Remediation
 
 
 
-> \*\*AegisAPI\*\* is a zero-trust API security gateway built on \*\*.NET 8 + YARP\*\*, with \*\*AI anomaly detection\*\* and \*\*auto-remediation PRs\*\* to keep your APIs safe, fast, and compliant.
+**AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **auto-remediation PRs** to keep your APIs safe, fast, and compliant.
 
 
 
-\### ✨ Features
+### ✨ Features
 
-\- 🔐 \*\*Authentication \& Authorization\*\* via Azure AD (OIDC) + OPA/Rego policies  
+- 🔐 **Authentication & Authorization** via Azure AD (OIDC) + OPA/Rego policies  
 
-\- 📊 \*\*Rate Limiting \& Quotas\*\* with per-tenant and adaptive rules  
+- 📊 **Rate Limiting & Quotas** with per-tenant and adaptive rules  
 
-\- 📑 \*\*Schema Validation\*\* for REST \& gRPC contracts  
+- 📑 **Schema Validation** for REST & gRPC contracts  
 
-\- 🛡 \*\*WAF Protections\*\* (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules  
+- 🛡 **WAF Protections** (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules  
 
-\- 🤖 \*\*AI Security Summarizer\*\* for anomaly detection + incident reports  
+- 🤖 **AI Security Summarizer** for anomaly detection + incident reports  
 
-\- 🔄 \*\*Auto-Remediation PRs\*\* with GitHub Actions (Cosign, Trivy, CodeQL, Checkov)  
+- 🔄 **Auto-Remediation PRs** with GitHub Actions (Cosign, Trivy, CodeQL, Checkov)  
 
 
 
-\### 📈 Key Performance Indicators
+### 📈 Key Performance Indicators
 
-\- \*\*p95 latency\*\* ≤ 150ms  
+- **p95 latency** ≤ 150ms  
 
-\- \*\*Block accuracy\*\* ≥ 98%  
+- **Block accuracy** ≥ 98%  
 
-\- \*\*False positives\*\* ≤ 0.5%  
+- **False positives** ≤ 0.5%  
 
-\- \*\*MTTR (Mean Time to Remediation)\*\* < 15 minutes  
+- **MTTR (Mean Time to Remediation)** < 15 minutes  
 
 
 
