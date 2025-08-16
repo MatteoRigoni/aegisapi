@@ -16,20 +16,18 @@
 
 ## SLOs & Thresholds
 
+---
 
+## SLOs & Thresholds
 
-| Objective                  | Target            | Alert Thresholds                          |
+| **Objective**              | **Target**        | **Alert Thresholds**                          |
+|-----------------------------|------------------|-----------------------------------------------|
+| p95 request latency         | ≤ 150ms          | Warn ≥ 120ms for 5m, Critical ≥ 150ms for 5m  |
+| Block accuracy              | ≥ 98%            | Warn ≤ 98.5% daily, Critical ≤ 98% daily      |
+| False positives             | ≤ 0.5%           | Warn ≥ 0.4% daily, Critical ≥ 0.5% daily      |
+| MTTR                        | < 15 minutes     | Warn ≥ 12m rolling avg, Critical ≥ 15m        |
 
-|-----------------------------|------------------|-------------------------------------------|
-
-| p95 request latency         | ≤ 150ms          | Warn ≥ 120ms for 5m, Critical ≥ 150ms for 5m |
-
-| Block accuracy              | ≥ 98%            | Warn ≤ 98.5% daily, Critical ≤ 98% daily   |
-
-| False positives             | ≤ 0.5%           | Warn ≥ 0.4% daily, Critical ≥ 0.5% daily   |
-
-| MTTR                        | < 15 minutes     | Warn ≥ 12m rolling avg, Critical ≥ 15m     |
-
+---
 
 
 ## Measurement
