@@ -1,20 +1,20 @@
-\# Service Level Objectives – AegisAPI
+# Service Level Objectives – AegisAPI
 
 
 
-\## Key Performance Indicators
+## Key Performance Indicators
 
-\- \*\*p95 latency\*\* ≤ 150ms  
+- **p95 latency** ≤ 150ms  
 
-\- \*\*Block accuracy\*\* ≥ 98%  
+- **Block accuracy** ≥ 98%  
 
-\- \*\*False positive rate\*\* ≤ 0.5%  
+- **False positive rate** ≤ 0.5%  
 
-\- \*\*MTTR (Mean Time to Remediation)\*\* < 15 minutes  
+- **MTTR (Mean Time to Remediation)** < 15 minutes  
 
 
 
-\## SLOs \& Thresholds
+## SLOs & Thresholds
 
 
 
@@ -32,31 +32,31 @@
 
 
 
-\## Measurement
+## Measurement
 
-\- \*\*Latency\*\* – captured via OpenTelemetry traces (exported to Prometheus/Grafana).  
+- **Latency** – captured via OpenTelemetry traces (exported to Prometheus/Grafana).  
 
-\- \*\*Accuracy \& FP rates\*\* – validated through security test suites (ZAP, k6) + canary analysis.  
+- **Accuracy & FP rates** – validated through security test suites (ZAP, k6) + canary analysis.  
 
-\- \*\*MTTR\*\* – measured from alert trigger → merged remediation PR.  
-
-
-
-\## Error Budget
-
-\- Latency: 5% of requests may exceed SLO.  
-
-\- Accuracy: up to 2% missed attacks within evaluation period.  
-
-\- False positives: max 0.5% requests wrongly blocked per day.  
+- **MTTR** – measured from alert trigger → merged remediation PR.  
 
 
 
-\## Alerting Channels
+## Error Budget
 
-\- PagerDuty for critical events.  
+- Latency: 5% of requests may exceed SLO.  
 
-\- GitHub Issues auto-filed for repeated SLO breaches.  
+- Accuracy: up to 2% missed attacks within evaluation period.  
 
-\- Weekly SLO reports posted to Slack/Teams.  
+- False positives: max 0.5% requests wrongly blocked per day.  
+
+
+
+## Alerting Channels
+
+- PagerDuty for critical events.  
+
+- GitHub Issues auto-filed for repeated SLO breaches.  
+
+- Weekly SLO reports posted to Slack/Teams.  
 
