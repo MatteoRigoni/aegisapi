@@ -18,7 +18,7 @@ env:
 
 jobs:
   build-test:
-    name: Build & Test (.NET 8)
+    name: Build & Test (.NET 9)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,10 +26,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
           cache: true
           cache-dependency-path: |
             **/*.sln
@@ -91,10 +91,10 @@ jobs:
           # Optional: enable additional queries (security-extended or security-and-quality)
           # queries: security-extended
 
-      - name: Setup .NET 8
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
           cache: true
 
       # Let CodeQL detect and build the solution (good default for C#)
