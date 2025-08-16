@@ -6,15 +6,15 @@
 
 ```mermaid
 flowchart LR
-    Client[Client / Partner] -->|HTTPS (TLS1.2+)| E[Edge: Azure Front Door / AppGW WAF]
-    E --> G[Gateway (YARP, .NET 8)]
-    subgraph YARP Pipeline (per-request)
-      A1[AuthN: OIDC (Azure AD) / API Key] --> A2[AuthZ: OPA (Rego) via local sidecar]
-      A2 --> A3[Rate Limit (token bucket, Redis)]
-      A3 --> A4[Schema Validation (OpenAPI/JSON Schema)]
-      A4 --> A5[WAF Checks (OWASP CRS via Coraza or Edge WAF)]
+    Client["Client / Partner"] -->|"HTTPS (TLS1.2plus)"| E["Edge: Azure Front Door / AppGW WAF"]
+    E --> G["Gateway (YARP, .NET 8)"]
+    subgraph "YARP Pipeline (per-request)"
+      A1["AuthN: OIDC (Azure AD) or API Key"] --> A2["AuthZ: OPA (Rego) via sidecar"]
+      A2 --> A3["Rate Limit (token bucket, Redis)"]
+      A3 --> A4["Schema Validation (OpenAPI/JSON Schema)"]
+      A4 --> A5["WAF Checks (OWASP CRS, Coraza or Edge WAF)"]
     end
-    G -->|mTLS / JWT| Svc[Backend Service(s)]
+    G -->|"mTLS / JWT"| Svc["Backend Services"]
 ```
 
 ### Notes
