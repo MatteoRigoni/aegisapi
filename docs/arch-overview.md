@@ -27,22 +27,22 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph GitOps & CI/CD
-      Repo[Policies Repo (Rego)] --> CI[GitHub Actions: lint, test, checkov]
-      CI --> Bundle[OPA Bundle (OCI Artifact)]
-      CI --> SBOM[SBOM + Sign (Syft/Cosign)]
-    end
+  subgraph "GitOps and CI/CD"
+    Repo["Policies Repo (Rego)"] --> CI["GitHub Actions: lint, test, Checkov"]
+    CI --> Bundle["OPA Bundle (OCI Artifact)"]
+    CI --> SBOM["SBOM and Sign (Syft / Cosign)"]
+  end
 
-    Bundle -->|pull| OPASidecar[OPA Sidecar @ Gateway]
-    OPASidecar <-->|/v1/data/aegis/allow| YARPMW[YARP AuthZ Middleware]
+  Bundle -->|"pull"| OPASidecar["OPA Sidecar at Gateway"]
+  OPASidecar <-->|"/v1/data/aegis/allow"| YARPMW["YARP AuthZ Middleware"]
 
-    subgraph Runtime Mgmt
-      ADM[Admin Portal: policy PRs, approvals]
-      Tele[Telemetry: OTel, traces/logs/metrics]
-    end
+  subgraph "Runtime Management"
+    ADM["Admin Portal: policy PRs, approvals"]
+    Tele["Telemetry: OTel, traces, logs, metrics"]
+  end
 
-    Tele --> ADM
-    ADM --> Repo
+  Tele --> ADM
+  ADM --> Repo
 ```
 
 ### Notes
@@ -54,11 +54,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    OTel[OTel Collector] --> EH[(Event Hub / Kafka)]
-    EH --> ADSvc[Anomaly Detector (rules + ML)]
-    ADSvc --> Sidecar[AI Summarizer Sidecar (.NET + Azure OpenAI)]
-    Sidecar --> GH[GitHub PR bot]
-    Sidecar --> Ops[Teams/Email Pager Alerts]
+    OTel["OTel Collector"] --> EH["Event Hub or Kafka"]
+    EH --> ADSvc["Anomaly Detector (rules and ML)"]
+    ADSvc --> Sidecar["AI Summarizer Sidecar (.NET and Azure OpenAI)"]
+    Sidecar --> GH["GitHub PR Bot"]
+    Sidecar --> Ops["Teams or Email Pager Alerts"]
 ```
 
 ### Notes
@@ -70,11 +70,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    App[Gateway & Services (OTel SDK)] --> Coll[OTel Collector (DaemonSet)]
-    Coll -->|OTLP| AM[Azure Monitor / Application Insights]
-    Coll -->|OTLP| Logs[Log Analytics]
-    Coll -->|OTLP| Jaeger[Jaeger/Tempo (optional)]
-    Coll -->|Prom| Prom[Prometheus / Managed Prom]
+    App["Gateway and Services (OTel SDK)"] --> Coll["OTel Collector (DaemonSet)"]
+    Coll -->|"OTLP"| AM["Azure Monitor and Application Insights"]
+    Coll -->|"OTLP"| Logs["Log Analytics"]
+    Coll -->|"OTLP"| Jaeger["Jaeger or Tempo (optional)"]
+    Coll -->|"Prom"| Prom["Prometheus or Managed Prom"]
 ```
 
 ### Notes
