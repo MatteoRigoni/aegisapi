@@ -4,6 +4,7 @@
 
 **AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **auto-remediation PRs** to keep your APIs safe, fast, and compliant.
 
+[![CI – Build & Test](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml)
 
 
 ### ✨ Features

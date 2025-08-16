@@ -1,40 +1,126 @@
 name: ci
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  # Set to true if you use packages.lock.json across solutions
+  USE_LOCKED_MODE: 'false'
 
 jobs:
   build-test:
+    name: Build & Test (.NET 8)
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: dotnet restore
-      - run: dotnet build --configuration Release
-      - run: dotnet test --configuration Release --collect:"XPlat Code Coverage"
-
-  codeql:
     permissions:
-      security-events: write
       contents: read
-      actions: read
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: csharp
-      - uses: actions/setup-dotnet@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet restore
-      - uses: github/codeql-action/analyze@v3
+          cache: true
+
+      - name: Restore
+        run: |
+          if [ "${USE_LOCKED_MODE}" = "true" ]; then
+            dotnet restore --locked-mode
+          else
+            dotnet restore
+          fi
+
+      - name: Build (Release, warnings as errors)
+        run: dotnet build --configuration Release --no-restore /p:TreatWarningsAsErrors=true
+
+      - name: Test (XPlat Coverage)
+        run: >
+          dotnet test --configuration Release --no-build
+          --collect:"XPlat Code Coverage"
+          --logger "trx;LogFileName=test-results.trx"
+
+      - name: Locate coverage file
+        id: coverage
+        run: |
+          # Find the cobertura coverage file produced by XPlat collector
+          FILE=$(find . -type f -name "coverage.cobertura.xml" | head -n1 || true)
+          echo "file=${FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          if-no-files-found: warn
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/*/coverage.cobertura.xml
+            ${{ steps.coverage.outputs.file }}
+
+  codeql:
+    name: CodeQL (C#)
+    runs-on: ubuntu-latest
+    # CodeQL needs these minimal permissions
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          # Optional: enable additional queries (security-extended or security-and-quality)
+          # queries: security-extended
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+
+      # Let CodeQL detect and build the solution (good default for C#)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
 
   sbom:
+    name: SBOM (SPDX JSON)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: anchore/sbom-action@v0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
         with:
           path: "."
           format: spdx-json
           artifact-name: sbom.spdx.json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          if-no-files-found: error
