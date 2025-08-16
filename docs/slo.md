@@ -18,8 +18,6 @@
 
 ---
 
-## SLOs & Thresholds
-
 | **Objective**              | **Target**        | **Alert Thresholds**                          |
 |-----------------------------|------------------|-----------------------------------------------|
 | p95 request latency         | ≤ 150ms          | Warn ≥ 120ms for 5m, Critical ≥ 150ms for 5m  |
