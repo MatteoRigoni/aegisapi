@@ -9,21 +9,20 @@ namespace Gateway.Security;
 
 public sealed class ApiKeyValidationOptions
 {
-    public string Hash { get; }
-    public ApiKeyValidationOptions(string hash) => Hash = hash;
+    public string Hash { get; set; } = "";
 }
 
 public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public const string HeaderName = "X-API-Key";
-    private readonly ApiKeyValidationOptions _options;
+    private readonly IOptionsMonitor<ApiKeyValidationOptions> _options;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
         ISystemClock clock,
-        ApiKeyValidationOptions validationOptions)
+        IOptionsMonitor<ApiKeyValidationOptions> validationOptions)
         : base(options, logger, encoder, clock)
     {
         _options = validationOptions;
@@ -35,12 +34,14 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<Authenti
             return Task.FromResult(AuthenticateResult.NoResult());
 
         var provided = values.FirstOrDefault();
-        if (string.IsNullOrEmpty(provided) || string.IsNullOrEmpty(_options.Hash))
+        var expectedHash = _options.CurrentValue.Hash;
+
+        if (string.IsNullOrEmpty(provided) || string.IsNullOrEmpty(expectedHash))
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
         var providedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(provided)));
         var providedBytes = Convert.FromHexString(providedHash);
-        var expectedBytes = Convert.FromHexString(_options.Hash);
+        var expectedBytes = Convert.FromHexString(expectedHash);
 
         if (CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes))
         {

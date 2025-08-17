@@ -1,0 +1,36 @@
+name: SBOM
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [ "CI – Build & Test" ]
+    types: [ "completed" ]
+
+concurrency:
+  group: sbom-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbom:
+    name: SBOM (SPDX JSON)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: "./src"
+          format: spdx-json
+          output-file: ./sbom.spdx.json
+          upload-artifact: false
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: ./sbom.spdx.json
+          if-no-files-found: error

@@ -1,28 +1,26 @@
+using System.Text;
 using Gateway.Resilience;
+using Gateway.Security;
 using Gateway.Settings;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Gateway.Security;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Settings
-builder.Services.Configure<ResilienceSettings>(
-    builder.Configuration.GetSection("Resilience"));
+// Resilience configuration
+builder.Services.Configure<ResilienceSettings>(builder.Configuration.GetSection("Resilience"));
 
-// Authentication & Authorization
 const string ApiKeyScheme = "ApiKey";
-var jwtKey = builder.Configuration["Auth:JwtKey"] ?? "dev-secret";
-var apiKeyHash = builder.Configuration["Auth:ApiKeyHash"] ?? string.Empty;
+const string BearerOrApiKeyScheme = "BearerOrApiKey";
 
+// Authentication
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultScheme = "BearerOrApiKey";
-    options.DefaultChallengeScheme = "BearerOrApiKey";
+    options.DefaultScheme = BearerOrApiKeyScheme;
+    options.DefaultChallengeScheme = BearerOrApiKeyScheme;
 })
-.AddPolicyScheme("BearerOrApiKey", JwtBearerDefaults.AuthenticationScheme, options =>
+.AddPolicyScheme(BearerOrApiKeyScheme, JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.ForwardDefaultSelector = ctx =>
     {
@@ -35,6 +33,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    var jwtKey = builder.Configuration["Auth:JwtKey"] ?? "dev-secret";
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = false,
@@ -49,6 +48,7 @@ builder.Services.AddAuthentication(options =>
     options.ClaimsIssuer = ApiKeyScheme;
 });
 
+// Authorization
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ApiReadOrKey", policy =>
@@ -59,18 +59,18 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-builder.Services.AddSingleton(new ApiKeyValidationOptions(apiKeyHash));
+// ApiKey configuration
+builder.Services
+    .AddOptions<ApiKeyValidationOptions>()
+    .Configure<IConfiguration>((opt, cfg) => opt.Hash = cfg["Auth:ApiKeyHash"] ?? "");
 
-// Resilience v8 per YARP: factory custom che avvolge l'handler
-builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory,
-                              ResilienceForwarderHttpClientFactory>();
-
-builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+// YARP resilience
+builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
+builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
 
-// security headers (tuoi)
+// Security headers
 app.Use(async (ctx, next) =>
 {
     ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -86,8 +86,8 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
-
 app.MapReverseProxy();
+
 app.Run();
 
 public partial class Program { }
