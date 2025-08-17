@@ -15,7 +15,7 @@ namespace Gateway.IntegrationTests;
 
 public class SecurityTests
 {
-    private const string DEV_API_KEY = "8e9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18704e";
+    private const string DEV_API_KEY = "1e1f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18704e";
 
     // ===== Helpers =====
 

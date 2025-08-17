@@ -2,6 +2,7 @@ using System.Text;
 using Gateway.Resilience;
 using Gateway.Security;
 using Gateway.Settings;
+using Gateway.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Resilience configuration
 builder.Services.Configure<ResilienceSettings>(builder.Configuration.GetSection("Resilience"));
+builder.Services.Configure<RateLimitingSettings>(builder.Configuration.GetSection("RateLimiting"));
+builder.Services.AddMemoryCache();
 
 const string ApiKeyScheme = "ApiKey";
 const string BearerOrApiKeyScheme = "BearerOrApiKey";
@@ -82,6 +85,7 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseAuthentication();
+app.UseMiddleware<ClientRateLimiterMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
