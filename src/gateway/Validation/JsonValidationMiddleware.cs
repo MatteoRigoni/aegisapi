@@ -1,5 +1,5 @@
-using System.Text.Json.Nodes;
 using Json.Schema;
+using System.Text.Json.Nodes;
 
 namespace Gateway.Validation;
 
@@ -11,7 +11,7 @@ public class JsonValidationMiddleware
     public JsonValidationMiddleware(RequestDelegate next, IWebHostEnvironment env)
     {
         _next = next;
-        _schemaRoot = Path.Combine(env.ContentRootPath, "docs", "schemas");
+        _schemaRoot = Path.Combine("Validation", "Schemas");
     }
 
     public async Task Invoke(HttpContext context)
@@ -38,7 +38,9 @@ public class JsonValidationMiddleware
                 if (!result.IsValid)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    var errors = result.Details.Select(d => new { path = d.InstanceLocation.ToString(), error = d.Message });
+                    var errors = result.Details
+                        .Where(d => d.Errors != null && d.Errors.Count > 0)
+                        .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
                     await context.Response.WriteAsJsonAsync(new { errors });
                     return;
                 }
@@ -64,7 +66,9 @@ public class JsonValidationMiddleware
                 {
                     context.Response.Body = originalBody;
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    var errors = result.Details.Select(d => new { path = d.InstanceLocation.ToString(), error = d.Message });
+                    var errors = result.Details
+                        .Where(d => d.Errors != null && d.Errors.Count > 0)
+                        .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
                     await context.Response.WriteAsJsonAsync(new { errors });
                     return;
                 }
