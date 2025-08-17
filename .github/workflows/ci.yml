@@ -123,12 +123,12 @@ jobs:
         with:
           path: "./src"
           format: spdx-json
-          artifact-name: sbom.spdx.json
-          output-file: sbom-src
+          output-file: ./sbom.spdx.json
+          upload-artifact: false
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
           name: sbom
-          path: sbom.spdx.json
+          path: ./sbom.spdx.json
           if-no-files-found: error
