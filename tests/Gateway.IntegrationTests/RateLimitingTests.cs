@@ -7,12 +7,13 @@ using System.Security.Claims;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Gateway.IntegrationTests;
 
 public class RateLimitingTests
 {
-    private const string JwtKey = "dev-secret";
+    private const string JWT_KEY = "6d9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18703d";
 
     private static string CreateToken(string sub, string? plan = null)
     {
@@ -20,7 +21,7 @@ public class RateLimitingTests
         if (plan is not null)
             claims.Add(new("plan", plan));
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JWT_KEY));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(claims: claims, expires: DateTime.UtcNow.AddMinutes(5), signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);

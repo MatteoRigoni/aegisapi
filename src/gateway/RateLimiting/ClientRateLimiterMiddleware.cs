@@ -1,11 +1,12 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
-using System.Linq;
 using Gateway.Security;
 using Gateway.Settings;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Globalization;
+using System.Linq;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Gateway.RateLimiting;
 
@@ -62,7 +63,7 @@ public sealed class ClientRateLimiterMiddleware
 
     private static string? GetClientId(HttpContext context)
     {
-        var sub = context.User.FindFirst("sub")?.Value;
+        var sub = context.User.FindFirst("sub")?.Value ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!string.IsNullOrEmpty(sub))
             return sub;
 
