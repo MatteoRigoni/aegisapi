@@ -86,8 +86,6 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
-app.MapGet("/api/secure", () => Results.Ok("secret"))
-   .RequireAuthorization("ApiReadOrKey");
 
 app.MapReverseProxy();
 app.Run();
