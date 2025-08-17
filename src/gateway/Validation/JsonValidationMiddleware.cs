@@ -1,0 +1,80 @@
+using System.Text.Json.Nodes;
+using Json.Schema;
+
+namespace Gateway.Validation;
+
+public class JsonValidationMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly string _schemaRoot;
+
+    public JsonValidationMiddleware(RequestDelegate next, IWebHostEnvironment env)
+    {
+        _next = next;
+        _schemaRoot = Path.Combine(env.ContentRootPath, "docs", "schemas");
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        if (!context.Request.Path.StartsWithSegments("/api", out var remainder))
+        {
+            await _next(context);
+            return;
+        }
+
+        JsonSchema? schema = null;
+        if (context.Request.ContentType?.Contains("application/json") == true)
+        {
+            var schemaFile = Path.Combine(_schemaRoot, remainder.Value.Trim('/') + ".json");
+            if (File.Exists(schemaFile))
+            {
+                schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
+                context.Request.EnableBuffering();
+                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+                var body = await reader.ReadToEndAsync();
+                context.Request.Body.Position = 0;
+                var json = JsonNode.Parse(body);
+                var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
+                if (!result.IsValid)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    var errors = result.Details.Select(d => new { path = d.InstanceLocation.ToString(), error = d.Message });
+                    await context.Response.WriteAsJsonAsync(new { errors });
+                    return;
+                }
+            }
+        }
+
+        if (schema != null)
+        {
+            var originalBody = context.Response.Body;
+            await using var memStream = new MemoryStream();
+            context.Response.Body = memStream;
+
+            await _next(context);
+
+            memStream.Seek(0, SeekOrigin.Begin);
+            if (context.Response.ContentType?.Contains("application/json") == true)
+            {
+                var responseText = await new StreamReader(memStream).ReadToEndAsync();
+                memStream.Seek(0, SeekOrigin.Begin);
+                var json = JsonNode.Parse(responseText);
+                var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
+                if (!result.IsValid)
+                {
+                    context.Response.Body = originalBody;
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    var errors = result.Details.Select(d => new { path = d.InstanceLocation.ToString(), error = d.Message });
+                    await context.Response.WriteAsJsonAsync(new { errors });
+                    return;
+                }
+            }
+
+            await memStream.CopyToAsync(originalBody);
+            context.Response.Body = originalBody;
+            return;
+        }
+
+        await _next(context);
+    }
+}
