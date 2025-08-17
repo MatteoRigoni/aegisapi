@@ -25,7 +25,29 @@ public class JsonValidationMiddleware
         JsonSchema? schema = null;
         if (context.Request.ContentType?.Contains("application/json") == true)
         {
-            var schemaFile = Path.Combine(_schemaRoot, remainder.Value.Trim('/') + ".json");
+            var schemaFile = remainder.Value != null
+                ? Path.Combine(_schemaRoot, remainder.Value.Trim('/') + ".json")
+                : null;
+
+            if (schemaFile != null && File.Exists(schemaFile))
+            {
+                schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
+                context.Request.EnableBuffering();
+                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+                var body = await reader.ReadToEndAsync();
+                context.Request.Body.Position = 0;
+                var json = JsonNode.Parse(body);
+                var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
+                if (!result.IsValid)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    var errors = result.Details
+                       .Where(d => d.Errors != null && d.Errors.Count > 0)
+                       .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
+                    await context.Response.WriteAsJsonAsync(new { errors });
+                    return;
+                }
+            }
             if (File.Exists(schemaFile))
             {
                 schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
