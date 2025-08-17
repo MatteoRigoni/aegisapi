@@ -6,6 +6,18 @@
 
 [![CI – Build & Test](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml)
 
+## Quick Start
+
+```bash
+# Run the gateway
+cd src/gateway
+dotnet run
+
+# Test endpoints
+curl http://localhost:5000/              # Returns "AegisAPI Gateway up"
+curl http://localhost:5000/healthz       # Returns 200 OK
+curl http://localhost:5000/api/ping      # Proxies to backend /ping endpoint
+```
 
 ### ✨ Features
 
