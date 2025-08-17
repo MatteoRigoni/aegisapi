@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [ "master" ]
-  schedule:
-    - cron: "0 3 * * 1"  # lunedì alle 03:00 UTC (facoltativo)
+    types: [ closed ]
 
 concurrency:
   group: codeql-${{ github.ref }}
