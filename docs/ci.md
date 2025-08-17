@@ -1,4 +1,4 @@
-\# CI Pipeline
+# CI Pipeline
 
 
 
@@ -8,49 +8,49 @@
 
 
 
-\## What runs
+## What runs
 
 
 
-\- \*\*Build \& Test (.NET 8)\*\*  
+- **Build & Test (.NET 8)**  
 
 &nbsp; Restores with caching, builds Release with warnings as errors, runs tests, and publishes:
 
-&nbsp; - `test-results/\*.trx`
+&nbsp; - `test-results/*.trx`
 
 &nbsp; - `coverage.cobertura.xml` (XPlat)
 
 
 
-\- \*\*CodeQL (C#)\*\*  
+- **CodeQL (C#)**  
 
-&nbsp; Initializes CodeQL, builds the solution (autobuild), and uploads SARIF to the repository’s \*Code scanning alerts\*.
+&nbsp; Initializes CodeQL, builds the solution (autobuild), and uploads SARIF to the repository’s *Code scanning alerts*.
 
 
 
-\- \*\*SBOM (SPDX JSON)\*\*  
+- **SBOM (SPDX JSON)**  
 
 &nbsp; Generates `sbom.spdx.json` at the repo root and uploads it as an artifact for audit and supply-chain transparency.
 
 
 
-\## Artifacts
+## Artifacts
 
 
 
-\- `test-results` (unit test logs + coverage)
+- `test-results` (unit test logs + coverage)
 
-\- `sbom` (`sbom.spdx.json`)
-
-
-
-\## Tips
+- `sbom` (`sbom.spdx.json`)
 
 
 
-\- Commit `packages.lock.json` and set `USE\_LOCKED\_MODE=true` to enforce deterministic restores.
+## Tips
 
-\- Keep secrets out of CI logs; the pipeline uses least-privilege `permissions` and no custom tokens.
+
+
+- Commit `packages.lock.json` and set `USE_LOCKED_MODE=true` to enforce deterministic restores.
+
+- Keep secrets out of CI logs; the pipeline uses least-privilege `permissions` and no custom tokens.
 
 
 
