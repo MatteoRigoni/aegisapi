@@ -1,10 +1,11 @@
 name: SBOM
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: [ "CI – Build & Test" ]
-    types: [ "completed" ]
+    branches: [ "master" ]
+    types:
+      - completed
 
 concurrency:
   group: sbom-${{ github.ref }}
@@ -12,6 +13,7 @@ concurrency:
 
 jobs:
   sbom:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: SBOM (SPDX JSON)
     runs-on: ubuntu-latest
     permissions:
