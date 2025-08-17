@@ -16,10 +16,19 @@ cd src/gateway
 dotnet run
 
 # Test endpoints
-curl http://localhost:5000/              # Returns "AegisAPI Gateway up"
-curl http://localhost:5000/healthz       # Returns 200 OK
-curl http://localhost:5000/api/ping      # Proxies to backend /ping endpoint
+curl http://localhost:5000/                             # Returns "AegisAPI Gateway up"
+curl http://localhost:5000/healthz                      # Returns 200 OK
+curl http://localhost:5000/api/ping                     # Public route
+curl -H "Authorization: Bearer <token>" http://localhost:5000/api/secure/ping  # Protected route (JWT)
+curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               # Protected route (API key)
 ```
+
+## Autenticazione
+
+AegisAPI supporta due modalità di autenticazione:
+
+- **JWT**: inviare un token nell'intestazione `Authorization: Bearer <token>`. Per lo sviluppo, impostare il segreto simmetrico tramite `Auth:JwtKey` in `src/gateway/appsettings.Development.json`.
+- **API key**: inviare la chiave nell'intestazione `X-API-Key: <chiave>`. Per lo sviluppo, configurare `Auth:ApiKeyHash` nello stesso file con l'hash SHA-256 della chiave (`echo -n tua-chiave | sha256sum`).
 
 ### ✨ Features
 
