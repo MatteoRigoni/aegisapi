@@ -44,8 +44,8 @@ public sealed class WafMiddleware
 
         foreach (var q in context.Request.Query)
         {
-            toInspect.Add(q.Key);
-            toInspect.Add(q.Value);
+            toInspect.Add(q.Key ?? string.Empty);
+            toInspect.Add(q.Value.ToString() ?? string.Empty);
         }
 
         if (context.Request.ContentLength > 0 && context.Request.Body.CanRead)
