@@ -1,3 +1,4 @@
+using Gateway.Features;
 using Gateway.Observability;
 using Gateway.RateLimiting;
 using Gateway.Resilience;
@@ -80,6 +81,10 @@ builder.Services
 builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
+builder.Services.AddSingleton<FeatureConsumer>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FeatureConsumer>());
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(rb => rb.AddService("gateway"))
     .WithTracing(tracing => tracing
@@ -106,6 +111,8 @@ builder.Logging.AddOpenTelemetry(options =>
 });
 
 var app = builder.Build();
+
+app.UseMiddleware<FeatureCollectorMiddleware>();
 
 // Security headers
 app.Use(async (ctx, next) =>
