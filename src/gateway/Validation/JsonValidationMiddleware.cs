@@ -1,5 +1,6 @@
 using Json.Schema;
 using System.Text.Json.Nodes;
+using Gateway.Observability;
 
 namespace Gateway.Validation;
 
@@ -40,6 +41,7 @@ public class JsonValidationMiddleware
                 var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
                 if (!result.IsValid)
                 {
+                    GatewayDiagnostics.SchemaValidationErrors.Add(1);
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                     var errors = result.Details
                        .Where(d => d.Errors != null && d.Errors.Count > 0)
@@ -59,6 +61,7 @@ public class JsonValidationMiddleware
                 var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
                 if (!result.IsValid)
                 {
+                    GatewayDiagnostics.SchemaValidationErrors.Add(1);
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                     var errors = result.Details
                        .Where(d => d.Errors != null && d.Errors.Count > 0)
@@ -86,6 +89,7 @@ public class JsonValidationMiddleware
                 var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
                 if (!result.IsValid)
                 {
+                    GatewayDiagnostics.SchemaValidationErrors.Add(1);
                     context.Response.Body = originalBody;
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                     var errors = result.Details

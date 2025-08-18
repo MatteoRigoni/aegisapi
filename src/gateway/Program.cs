@@ -1,12 +1,19 @@
-using System.Text;
+using Gateway.Observability;
+using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
 using Gateway.Settings;
-using Gateway.RateLimiting;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +80,31 @@ builder.Services
 builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(rb => rb.AddService("gateway"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics =>
+    {
+        metrics.AddAspNetCoreInstrumentation();
+        metrics.AddHttpClientInstrumentation();
+        metrics.AddRuntimeInstrumentation();
+        metrics.AddProcessInstrumentation();
+        metrics.AddMeter(GatewayDiagnostics.MeterName);
+        metrics.AddPrometheusExporter();
+        metrics.AddOtlpExporter();
+    });
+
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
+    options.AddOtlpExporter();
+});
+
 var app = builder.Build();
 
 // Security headers
@@ -96,6 +128,7 @@ app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
 app.MapPost("/api/echo", (System.Text.Json.JsonElement payload) => Results.Json(payload));
 app.MapReverseProxy();
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
 

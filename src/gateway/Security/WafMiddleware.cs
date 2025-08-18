@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Gateway.Settings;
 using Microsoft.Extensions.Options;
+using Gateway.Observability;
 
 namespace Gateway.Security;
 
@@ -24,6 +25,7 @@ public sealed class WafMiddleware
         if (reason is not null)
         {
             _logger.LogWarning("Request blocked by WAF: {Reason}", reason);
+            GatewayDiagnostics.WafBlocks.Add(1);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsync("Forbidden");
             return;

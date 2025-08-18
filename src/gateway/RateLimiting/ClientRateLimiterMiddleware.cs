@@ -1,4 +1,5 @@
 using Gateway.Security;
+using Gateway.Observability;
 using Gateway.Settings;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -53,6 +54,7 @@ public sealed class ClientRateLimiterMiddleware
 
         if (!allowed)
         {
+            GatewayDiagnostics.RateLimitHits.Add(1);
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             context.Response.Headers["Retry-After"] = Math.Ceiling(retryAfter).ToString(CultureInfo.InvariantCulture);
             return;

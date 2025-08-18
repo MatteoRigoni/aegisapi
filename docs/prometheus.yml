@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'gateway'
+    scheme: https              # di default è http
+    static_configs:
+      - targets: ['host.docker.internal:7287']
+    tls_config:
+      insecure_skip_verify: true   # serve perché il certificato dev di Kestrel non è trusted
