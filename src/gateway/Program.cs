@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Resilience configuration
 builder.Services.Configure<ResilienceSettings>(builder.Configuration.GetSection("Resilience"));
 builder.Services.Configure<RateLimitingSettings>(builder.Configuration.GetSection("RateLimiting"));
+builder.Services.Configure<WafSettings>(builder.Configuration.GetSection("Waf"));
 builder.Services.AddMemoryCache();
 
 const string ApiKeyScheme = "ApiKey";
@@ -85,6 +86,7 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+app.UseMiddleware<WafMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<ClientRateLimiterMiddleware>();
 app.UseAuthorization();
