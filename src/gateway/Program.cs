@@ -1,17 +1,19 @@
-using System.Text;
+using Gateway.Observability;
+using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
 using Gateway.Settings;
-using Gateway.RateLimiting;
 using Gateway.Validation;
-using Gateway.Observability;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -98,6 +100,7 @@ builder.Services.AddOpenTelemetry()
 builder.Logging.AddOpenTelemetry(options =>
 {
     options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
     options.ParseStateValues = true;
     options.AddOtlpExporter();
 });
