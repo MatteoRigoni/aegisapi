@@ -42,6 +42,7 @@ public class JsonValidationMiddleware
                 if (!result.IsValid)
                 {
                     GatewayDiagnostics.SchemaValidationErrors.Add(1);
+                    context.Items["SchemaError"] = true;
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                     var errors = result.Details
                        .Where(d => d.Errors != null && d.Errors.Count > 0)
@@ -62,6 +63,7 @@ public class JsonValidationMiddleware
                 if (!result.IsValid)
                 {
                     GatewayDiagnostics.SchemaValidationErrors.Add(1);
+                    context.Items["SchemaError"] = true;
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                     var errors = result.Details
                        .Where(d => d.Errors != null && d.Errors.Count > 0)
@@ -90,6 +92,7 @@ public class JsonValidationMiddleware
                 if (!result.IsValid)
                 {
                     GatewayDiagnostics.SchemaValidationErrors.Add(1);
+                    context.Items["SchemaError"] = true;
                     context.Response.Body = originalBody;
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                     var errors = result.Details

@@ -38,6 +38,8 @@ public sealed class ClientRateLimiterMiddleware
 
         var plan = context.User.FindFirst("plan")?.Value;
         var limit = _settings.GetLimit(plan);
+        context.Items["ClientId"] = clientId;
+        context.Items["RpsWindow"] = limit / 60d;
         var now = DateTime.UtcNow;
 
         var bucket = _cache.GetOrCreate(clientId, e =>
