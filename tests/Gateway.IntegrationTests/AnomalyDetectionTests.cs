@@ -1,4 +1,4 @@
-using Gateway.Features;
+﻿using Gateway.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -26,7 +26,7 @@ public class AnomalyDetectionTests
         var cache = new MemoryCache(new MemoryCacheOptions());
         var detector = new RollingThresholdDetector(Options.Create(settings), cache);
 
-        // produce 6 requests quickly to exceed RPS threshold (5 over 5s)
+        // produce 6 requests quickly to exceed RPS threshold (5 over 1s)
         for (int i = 0; i < 6; i++)
             detector.Observe(new RequestFeature("c1", 0, 5, "/r1", 200, false), out _);
         Assert.True(detector.Observe(new RequestFeature("c1", 0, 5, "/r1", 200, false), out var reason) && reason == "rps_spike");
@@ -57,7 +57,8 @@ public class AnomalyDetectionTests
             Mode = DetectionMode.Ml,
             BaselineSampleSize = 3,
             TrainingWindowMinutes = 60,
-            RetrainIntervalMinutes = 60
+            RetrainIntervalMinutes = 60,
+            UseIsolationForest = false
         };
         var ml = new MlAnomalyDetector(Options.Create(settings));
 
@@ -81,7 +82,8 @@ public class AnomalyDetectionTests
             Mode = DetectionMode.Hybrid,
             BaselineSampleSize = 3,
             WafThreshold = 0,
-            UaEntropyThreshold = 0
+            UaEntropyThreshold = 0,
+            UseIsolationForest = false
         };
         var cache = new MemoryCache(new MemoryCacheOptions());
         var rules = new RollingThresholdDetector(Options.Create(settings), cache);
@@ -110,6 +112,7 @@ public class AnomalyDetectionTests
             BaselineSampleSize = 80,
             TrainingWindowMinutes = 60,
             RetrainIntervalMinutes = 60,
+            UseIsolationForest = false,
             UseMl = true
         };
         var ml = new MlAnomalyDetector(Options.Create(settings));
@@ -129,5 +132,138 @@ public class AnomalyDetectionTests
 
         Assert.True(tp >= 15);
         Assert.True(fp <= 1);
+    }
+
+    /// <summary>
+    /// Ensures the detector saves its model and threshold to disk and, after a new instance starts,
+    /// immediately loads them (no warm-up) and keeps the same anomaly behavior.
+    /// </summary>
+    [Fact]
+    public void MlDetector_PersistsAndReloads_ModelAndThreshold()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 10,
+            MinSamplesGuard = 5,
+            TrainingWindowMinutes = 1,
+            RetrainIntervalMinutes = 60,
+            ScoreQuantile = 0.99,
+            MinVarianceGuard = 999, // force fallback: Score = RPS
+            UseIsolationForest = false,
+            ModelPath = Path.Combine(dir, "model.zip"),
+            ThresholdPath = Path.Combine(dir, "thr.txt")
+        };
+
+        var ml1 = new MlAnomalyDetector(Options.Create(settings));
+
+        // Train baseline on "normal" traffic (RPS=1)
+        for (int i = 0; i < 10; i++)
+            ml1.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+
+        // Sanity: normal is not anomaly
+        Assert.False(ml1.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _));
+        // Clear spike should be anomaly
+        Assert.True(ml1.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+
+        // New instance: must load persisted model+threshold and be active immediately (no warm-up)
+        var ml2 = new MlAnomalyDetector(Options.Create(settings));
+        Assert.True(ml2.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+        Assert.False(ml2.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _));
+
+        try { Directory.Delete(dir, true); } catch { /* best effort */ }
+    }
+
+    /// <summary>
+    /// Confirms baseline training ignores “dirty” samples (e.g., WAF/SchemaError) so they don’t contaminate the model;
+    /// once clean samples arrive, anomalies are detected as expected.
+    /// </summary>
+    [Fact]
+    public void MlDetector_ExcludesFlaggedSamples_FromBaseline()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 10,
+            ScoreQuantile = 0.99,
+            MinVarianceGuard = 999, // fallback path for determinism
+            UseIsolationForest = false
+        };
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+
+        // Feed only flagged samples (schema errors) -> baseline MUST NOT complete
+        for (int i = 0; i < 10; i++)
+            ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, SchemaError: true), out _);
+
+        // Not trained yet -> even a clear spike should return false (no decision)
+        Assert.False(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+
+        // Now feed clean samples to meet baseline
+        for (int i = 0; i < 10; i++)
+            ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+
+        // After baseline, spike should be detected
+        Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+    }
+
+    /// <summary>
+    /// Validates that the chosen quantile sets the false-positive budget:
+    /// with fallback scoring (Score = RPS), normals rarely exceed the threshold,
+    /// while spikes (higher RPS) are flagged as anomalies.
+    /// 
+    /// Baseline: 100 samples alternating RPS {1,2}. Sorted, the 90th percentile (floor index) is 2.
+    /// Thus threshold = 2; 1.5 < 2 (not anomalous), 3 > 2 (anomalous).
+    /// </summary>
+    [Fact]
+    public void MlDetector_QuantileControlsFalsePositives_WithFallbackScoring()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
+        {
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 100,
+                ScoreQuantile = 0.90,      // 90th percentile -> threshold = 2 for {1,2} alternating
+                MinVarianceGuard = 999,    // force fallback (Score = RPS)
+                UseIsolationForest = false,
+                ModelPath = Path.Combine(dir, "model.zip"),
+                ThresholdPath = Path.Combine(dir, "thr.txt")
+            };
+
+            var ml = new MlAnomalyDetector(Options.Create(settings));
+
+            // Baseline: alternate RPS 1 and 2 → threshold becomes 2
+            for (int i = 0; i < 100; i++)
+            {
+                var rps = (i % 2 == 0) ? 1 : 2;
+                ml.Observe(new RequestFeature("c", rps, 5, "/r", 200, false), out _);
+            }
+
+            // Normals around 1.5 → should not cross threshold=2
+            int fp = 0;
+            for (int i = 0; i < 100; i++)
+            {
+                if (ml.Observe(new RequestFeature("c", 1.5, 5, "/r", 200, false), out _))
+                    fp++;
+            }
+
+            // Spikes at 3 → should cross threshold=2
+            int tp = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                if (ml.Observe(new RequestFeature("c", 3, 5, "/r", 200, false), out _))
+                    tp++;
+            }
+
+            Assert.Equal(0, fp);
+            Assert.Equal(20, tp);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* best effort */ }
+        }
     }
 }
