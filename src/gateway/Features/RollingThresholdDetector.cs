@@ -20,11 +20,11 @@ public class RollingThresholdDetector : IAnomalyDetector
         var key = (feature.ClientId ?? "unknown", feature.RouteKey ?? "unknown");
         var now = DateTime.UtcNow;
 
-        var window = _cache.GetOrCreate(key, entry =>
+        var window = _cache.GetOrCreate<Window>(key, entry =>
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(_settings.WindowTtlMinutes);
             return new Window(_settings.RpsWindowSeconds, _settings.ErrorWindowSeconds);
-        });
+        }) ?? throw new InvalidOperationException("Failed to create cache window.");
 
         window.Add(feature, now);
 
