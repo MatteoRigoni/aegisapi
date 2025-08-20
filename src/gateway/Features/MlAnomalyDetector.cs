@@ -113,8 +113,17 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             return;
         }
 
-        // PCA pipeline with safe rank based on schema dimension and actual variance
+        // If only a single feature has variance, PCA offers no reconstruction error;
+        // fall back to simple RPS-based thresholding instead.
         var activeDim = NonZeroVarianceDims(data);
+        if (activeDim <= 1)
+        {
+            CalibrateFallback(data);
+            _trained = true;
+            return;
+        }
+
+        // PCA pipeline with safe rank based on schema dimension and actual variance
         var pipeline = BuildPcaPipeline(dv, activeDim);
         var model = pipeline.Fit(dv);
 
@@ -152,17 +161,25 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var dv = _ml.Data.LoadFromEnumerable(data);
         var varOk = Variance(data) >= _settings.MinVarianceGuard;
 
-        // If we are in fallback and data still has low variance, just recalibrate threshold on RPS.
-        if (_fallbackActive && !varOk)
+        // If we are in fallback mode
+        if (_fallbackActive)
         {
-            CalibrateFallback(data);
-            return;
-        }
+            // and variance is still too low, just recalibrate threshold on RPS.
+            if (!varOk)
+            {
+                CalibrateFallback(data);
+                return;
+            }
 
-        // If we are in fallback and now variance is OK -> switch to PCA.
-        if (_fallbackActive && varOk)
-        {
+            // Even with variance, if only one dimension varies, PCA offers no benefit.
             var activeDim2 = NonZeroVarianceDims(data);
+            if (activeDim2 <= 1)
+            {
+                CalibrateFallback(data);
+                return;
+            }
+
+            // Otherwise switch to PCA.
             var pipeline = BuildPcaPipeline(dv, activeDim2);
             var model = pipeline.Fit(dv);
 
@@ -188,6 +205,14 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
 
         // PCA retrain
         var activeDim = NonZeroVarianceDims(data);
+        if (activeDim <= 1)
+        {
+            // Degenerated to single-dimension variance: switch to fallback.
+            CalibrateFallback(data);
+            _fallbackActive = true;
+            return;
+        }
+
         var pcaPipeline = BuildPcaPipeline(dv, activeDim);
         var pcaModel = pcaPipeline.Fit(dv);
 
