@@ -238,9 +238,11 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             Oversampling = Math.Min(3, rank)
         };
 
-        return _ml.Transforms
-                  .NormalizeMeanVariance(featureCol)
-                  .Append(_ml.AnomalyDetection.Trainers.RandomizedPca(pca));
+        // NormalizeMeanVariance can produce NaNs when a slot has zero variance
+        // but a non-zero mean. Randomized PCA already centers the data when
+        // EnsureZeroMean=true, so we skip explicit normalization to avoid NaNs
+        // from constant feature values.
+        return _ml.AnomalyDetection.Trainers.RandomizedPca(pca);
     }
 
     private void CalibrateFallback(System.Collections.Generic.IEnumerable<AnomalyVector> data)
