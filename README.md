@@ -38,9 +38,11 @@ AegisAPI supporta due modalità di autenticazione:
 
 - 📑 **Schema Validation** for REST & gRPC contracts  
 
-- 🛡 **WAF Protections** (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules  
+- 🛡 **WAF Protections** (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules
 
-- 🤖 **AI Security Summarizer** for anomaly detection + incident reports  
+- 📉 **Anomaly Detection** with per-client rolling thresholds and optional ML.NET models (see [docs/anomaly-detection](docs/anomaly-detection.md))
+
+- 🤖 **AI Security Summarizer** for anomaly detection + incident reports
 
 - 🔄 **Auto-Remediation PRs** with GitHub Actions (Cosign, Trivy, CodeQL, Checkov)  
 
