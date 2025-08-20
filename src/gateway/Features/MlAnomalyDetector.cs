@@ -74,7 +74,11 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var dv = _ml.Data.LoadFromEnumerable(data);
         var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
             .Append(_settings.UseIsolationForest
-                ? _ml.AnomalyDetection.Trainers.IsolationForest(nameof(AnomalyVector.Features))
+                ? _ml.AnomalyDetection.Trainers.IsolationForest(
+                    new Microsoft.ML.Trainers.IsolationForestTrainer.Options
+                    {
+                        FeatureColumnName = nameof(AnomalyVector.Features)
+                    })
                 : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
         var model = pipeline.Fit(dv);
         var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
@@ -105,7 +109,11 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var dv = _ml.Data.LoadFromEnumerable(data);
         var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
             .Append(_settings.UseIsolationForest
-                ? _ml.AnomalyDetection.Trainers.IsolationForest(nameof(AnomalyVector.Features))
+                ? _ml.AnomalyDetection.Trainers.IsolationForest(
+                    new Microsoft.ML.Trainers.IsolationForestTrainer.Options
+                    {
+                        FeatureColumnName = nameof(AnomalyVector.Features)
+                    })
                 : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
         var model = pipeline.Fit(dv);
         var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
