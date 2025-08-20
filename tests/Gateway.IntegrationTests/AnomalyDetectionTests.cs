@@ -567,4 +567,62 @@ public class AnomalyDetectionTests
         Assert.True(hybrid.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out var reason));
         Assert.Equal("ml_outlier", reason);
     }
+
+    /// <summary>
+    /// Retraining should drop samples outside the TrainingWindow so the
+    /// threshold is recalibrated using only recent traffic.
+    /// </summary>
+    [Fact]
+    public void MlDetector_Retrain_PrunesOldSamples()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_prune_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
+        {
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 3,
+                MinSamplesGuard = 3,
+                TrainingWindowMinutes = 1,
+                RetrainIntervalMinutes = 60,
+                ScoreQuantile = 0.99,
+                MinVarianceGuard = 999,
+                UseIsolationForest = false,
+                ModelPath = Path.Combine(dir, "model.zip"),
+                ThresholdPath = Path.Combine(dir, "thr.txt")
+            };
+            var ml = new MlAnomalyDetector(Options.Create(settings));
+
+            // Baseline with low RPS
+            for (int i = 0; i < settings.BaselineSampleSize; i++)
+                ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+
+            var holder = typeof(MlAnomalyDetector).GetField("_holder", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ml)!;
+            var thrProp = holder.GetType().GetProperty("Threshold")!;
+            var thrBefore = (double)thrProp.GetValue(holder)!;
+
+            // Age the baseline samples so they fall outside the window
+            var bufferField = typeof(MlAnomalyDetector).GetField("_buffer", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var buffer = (ConcurrentQueue<(DateTime ts, float[] vec)>)bufferField.GetValue(ml)!;
+            var aged = buffer.ToArray().Select(b => (DateTime.UtcNow - TimeSpan.FromMinutes(2), b.vec));
+            bufferField.SetValue(ml, new ConcurrentQueue<(DateTime, float[])>(aged));
+
+            // Add new high-RPS samples within the window
+            for (int i = 0; i < settings.MinSamplesGuard; i++)
+                ml.Observe(new RequestFeature("c", 10, 5, "/r", 200, false), out _);
+
+            var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+
+            var thrAfter = (double)thrProp.GetValue(holder)!;
+
+            Assert.True(thrBefore < 5, "Baseline threshold should be low.");
+            Assert.True(thrAfter > 9, "Threshold should reflect only recent high-RPS samples.");
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
 }
