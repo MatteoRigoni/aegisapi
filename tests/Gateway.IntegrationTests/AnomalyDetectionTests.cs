@@ -407,44 +407,56 @@ public class AnomalyDetectionTests
     [Fact]
     public void MlDetector_Retrain_PrunesOldSamples()
     {
-        var settings = new AnomalyDetectionSettings
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_prune_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
         {
-            BaselineSampleSize = 5,
-            MinSamplesGuard = 3,
-            TrainingWindowMinutes = 1,
-            RetrainIntervalMinutes = 60,
-            MinVarianceGuard = 1e-6,
-            UseIsolationForest = false
-        };
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 5,
+                MinSamplesGuard = 3,
+                TrainingWindowMinutes = 1,
+                RetrainIntervalMinutes = 60,
+                MinVarianceGuard = 1e-6,
+                UseIsolationForest = false,
+                ModelPath = Path.Combine(dir, "model.zip"),
+                ThresholdPath = Path.Combine(dir, "thr.txt"),
+            };
 
-        var ml = new MlAnomalyDetector(Options.Create(settings));
+            var ml = new MlAnomalyDetector(Options.Create(settings));
 
-        // Baseline low RPS
-        for (int i = 0; i < 5; i++)
-            ml.Observe(new RequestFeature("c", 1, 3.0, "/r", 200, false), out _);
+            // Baseline low RPS
+            for (int i = 0; i < 5; i++)
+                ml.Observe(new RequestFeature("c", 1, 3.0, "/r", 200, false), out _);
 
-        var holder = typeof(MlAnomalyDetector).GetField("_holder", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ml)!;
-        var thrProp = holder.GetType().GetProperty("Threshold")!;
-        var thrBefore = (double)thrProp.GetValue(holder)!;
+            var holder = typeof(MlAnomalyDetector).GetField("_holder", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ml)!;
+            var thrProp = holder.GetType().GetProperty("Threshold")!;
+            var thrBefore = (double)thrProp.GetValue(holder)!;
 
-        // Make baseline samples old
-        var bufField = typeof(MlAnomalyDetector).GetField("_buffer", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var queue = (ConcurrentQueue<(DateTime ts, float[] vec)>)bufField.GetValue(ml)!;
-        var arr = queue.ToArray();
-        while (queue.TryDequeue(out _)) { }
-        foreach (var e in arr)
-            queue.Enqueue((DateTime.UtcNow - TimeSpan.FromMinutes(5), e.vec));
+            // Make baseline samples old
+            var bufField = typeof(MlAnomalyDetector).GetField("_buffer", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var queue = (ConcurrentQueue<(DateTime ts, float[] vec)>)bufField.GetValue(ml)!;
+            var arr = queue.ToArray();
+            while (queue.TryDequeue(out _)) { }
+            foreach (var e in arr)
+                queue.Enqueue((DateTime.UtcNow - TimeSpan.FromMinutes(5), e.vec));
 
-        // Add new high-RPS current samples
-        for (int i = 0; i < 5; i++)
-            ml.Observe(new RequestFeature("c", 10, 3.0, "/r", 200, false), out _);
+            // Add new high-RPS current samples
+            for (int i = 0; i < 5; i++)
+                ml.Observe(new RequestFeature("c", 10, 3.0, "/r", 200, false), out _);
 
-        // Retrain and ensure old samples are pruned
-        var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+            // Retrain and ensure old samples are pruned
+            var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
 
-        var thrAfter = (double)thrProp.GetValue(holder)!;
-        Assert.True(thrAfter > thrBefore, $"Expected threshold to increase, before={thrBefore}, after={thrAfter}");
+            var thrAfter = (double)thrProp.GetValue(holder)!;
+            Assert.True(thrAfter > thrBefore, $"Expected threshold to increase, before={thrBefore}, after={thrAfter}");
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
     }
 
     /// <summary>
