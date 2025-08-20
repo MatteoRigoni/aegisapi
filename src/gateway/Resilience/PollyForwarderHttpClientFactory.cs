@@ -89,6 +89,8 @@ public sealed class ResilienceForwarderHttpClientFactory : ForwarderHttpClientFa
             .AddTimeout(timeout)
             .Build();
 
+#pragma warning disable EXTEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates
         return new ResilienceHandler(pipeline) { InnerHandler = innerHandler };
+#pragma warning restore EXTEXP0001
     }
 }
