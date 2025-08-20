@@ -3,10 +3,14 @@ using Microsoft.Extensions.Options;
 
 namespace Gateway.Features;
 
-public interface IRequestFeatureQueue
+public interface IFeatureSource
+{
+    IAsyncEnumerable<RequestFeature> DequeueAllAsync(CancellationToken token);
+}
+
+public interface IRequestFeatureQueue : IFeatureSource
 {
     void Enqueue(RequestFeature feature);
-    IAsyncEnumerable<RequestFeature> DequeueAllAsync(CancellationToken token);
     void Seed(IEnumerable<RequestFeature> features);
 }
 
