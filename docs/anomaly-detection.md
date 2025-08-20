@@ -4,7 +4,7 @@ AegisAPI separates feature extraction from anomaly detection so that different d
 
 ## 1. Feature Extraction
 - `FeatureCollectorMiddleware` runs at the end of the ASP.NET pipeline.
-- For every request it collects the client id, request-rate window, user-agent entropy, route, status code, schema-error flag, and WAF hit flag.
+- For every request it collects the client id, **HTTP method**, **normalized route** (first two segments), request-rate window, user-agent entropy, status code, schema-error flag, and WAF hit flag.
 - These values are packaged into a `RequestFeature` record and pushed to an in-memory queue.
 
 ## 2. In-memory Queue

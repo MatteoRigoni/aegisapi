@@ -32,6 +32,9 @@ public class FeatureTests
                     ["AnomalyDetection:FiveXxThreshold"] = "0",
                     ["AnomalyDetection:WafThreshold"] = "0",
                     ["AnomalyDetection:UaEntropyThreshold"] = "0",
+                    // Override proxy routes to avoid forwarding to a non-existent backend during tests
+                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catch-all}",
+                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catch-all}",
                 });
             });
         });
@@ -72,6 +75,24 @@ public class FeatureTests
         Assert.Equal("/api/echo", feature.Path);
         Assert.Equal(400, feature.Status);
         Assert.True(feature.SchemaError);
+    }
+
+    [Fact]
+    public async Task NormalizesRouteAndCapturesMethodAndUaEntropy()
+    {
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient(); // no user-agent header
+
+        var response = await client.PostAsJsonAsync("/api/echo/deep/path", new { });
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var service = factory.Services.GetRequiredService<AnomalyDetectionService>();
+        await WaitForAnomaliesAsync(service, 1);
+
+        var (feature, _) = Assert.Single(service.Anomalies);
+        Assert.Equal("POST", feature.Method);
+        Assert.Equal("/api/echo", feature.RouteKey);
+        Assert.Equal(0, feature.UaEntropy);
     }
 
     [Fact]

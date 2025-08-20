@@ -19,11 +19,13 @@ public class RollingThresholdDetector : IAnomalyDetector
     {
         var key = (feature.ClientId ?? "unknown", feature.RouteKey);
         var now = DateTime.UtcNow;
+
         var window = _cache.GetOrCreate(key, entry =>
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(_settings.WindowTtlMinutes);
             return new Window(_settings.RpsWindowSeconds, _settings.ErrorWindowSeconds);
         });
+
         window.Add(feature, now);
 
         if (window.Rps > _settings.RpsThreshold)
@@ -64,19 +66,24 @@ public class RollingThresholdDetector : IAnomalyDetector
         private readonly Queue<DateTime> _fourEvents = new();
         private readonly Queue<DateTime> _fiveEvents = new();
         private readonly Queue<DateTime> _wafEvents = new();
+        private DateTime _lastNow; // track most recent "now" for RPS calc
 
         public Window(int rpsSeconds, int errSeconds)
         {
-            _rpsWindow = TimeSpan.FromSeconds(rpsSeconds);
-            _errWindow = TimeSpan.FromSeconds(errSeconds);
+            _rpsWindow = TimeSpan.FromSeconds(Math.Max(1, rpsSeconds)); // guard
+            _errWindow = TimeSpan.FromSeconds(Math.Max(1, errSeconds)); // guard
+            _lastNow = DateTime.UtcNow;
         }
 
         public void Add(RequestFeature feature, DateTime now)
         {
+            _lastNow = now;
+
             _rpsEvents.Enqueue(now);
             if (feature.Status is >= 400 and < 500) _fourEvents.Enqueue(now);
             if (feature.Status >= 500) _fiveEvents.Enqueue(now);
             if (feature.WafHit) _wafEvents.Enqueue(now);
+
             Cleanup(now);
         }
 
@@ -92,7 +99,22 @@ public class RollingThresholdDetector : IAnomalyDetector
                 _wafEvents.Dequeue();
         }
 
-        public double Rps => _rpsEvents.Count / _rpsWindow.TotalSeconds;
+        // Compute RPS over the *actual elapsed seconds* since the oldest event in window,
+        // clamped to [1 second, configured rpsWindow].
+        public double Rps
+        {
+            get
+            {
+                if (_rpsEvents.Count == 0) return 0d;
+                var oldest = _rpsEvents.Peek();
+                var elapsed = (_lastNow - oldest).TotalSeconds;
+
+                // Clamp denominator to avoid division by near-zero and to respect configured window.
+                var denom = Math.Max(1.0, Math.Min(_rpsWindow.TotalSeconds, elapsed));
+                return _rpsEvents.Count / denom;
+            }
+        }
+
         public int FourXx => _fourEvents.Count;
         public int FiveXx => _fiveEvents.Count;
         public int WafHits => _wafEvents.Count;
