@@ -1,6 +1,7 @@
 ﻿using Gateway.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Threading;
 using Xunit;
 
 namespace Gateway.IntegrationTests;
@@ -43,6 +44,28 @@ public class AnomalyDetectionTests
 
         // low user-agent entropy
         Assert.True(detector.Observe(new RequestFeature("c5", 0, 0, "/r5", 200, false), out reason) && reason == "ua_low_entropy");
+    }
+
+    /// <summary>
+    /// Ensures the rolling detector isolates windows per client/route pair so
+    /// traffic on one route does not influence another route for the same client.
+    /// </summary>
+    [Fact]
+    public void RulesDetectorIsolatesRoutesPerClient()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            RpsThreshold = 1
+        };
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var detector = new RollingThresholdDetector(Options.Create(settings), cache);
+
+        // Trigger spike on /r1 for client "c"
+        detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false), out _);
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false), out var reason) && reason == "rps_spike");
+
+        // Same client but different route should not be flagged
+        Assert.False(detector.Observe(new RequestFeature("c", 0, 5, "/r2", 200, false), out _));
     }
 
     /// <summary>
