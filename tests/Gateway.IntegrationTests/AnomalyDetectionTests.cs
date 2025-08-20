@@ -1,10 +1,17 @@
 using Gateway.Features;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Xunit;
 
 namespace Gateway.IntegrationTests;
 
 public class AnomalyDetectionTests
 {
+    /// <summary>
+    /// Sets up a RollingThresholdDetector with low thresholds and verifies
+    /// it flags anomalies for RPS, HTTP errors, WAF hits, and low user-agent entropy.
+    /// Each anomaly uses a distinct client/route to isolate detection windows.
+    /// </summary>
     [Fact]
     public void RulesDetectorDetectsSpikes()
     {
@@ -14,23 +21,34 @@ public class AnomalyDetectionTests
             FourXxThreshold = 1,
             FiveXxThreshold = 0,
             WafThreshold = 0,
-            UaEntropyThreshold = 0
+            UaEntropyThreshold = 1
         };
-        var detector = new RollingThresholdDetector(Options.Create(settings));
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var detector = new RollingThresholdDetector(Options.Create(settings), cache);
 
         // produce 6 requests quickly to exceed RPS threshold (5 over 5s)
         for (int i = 0; i < 6; i++)
-            detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false), out _);
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false), out var reason) && reason == "rps_spike");
+            detector.Observe(new RequestFeature("c1", 0, 5, "/r1", 200, false), out _);
+        Assert.True(detector.Observe(new RequestFeature("c1", 0, 5, "/r1", 200, false), out var reason) && reason == "rps_spike");
 
-        detector.Observe(new RequestFeature("c", 0, 5, "/r", 404, false), out _);
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 404, false), out reason) && reason == "4xx_spike");
+        // exceed 4xx threshold for a different client/route pair
+        detector.Observe(new RequestFeature("c2", 0, 5, "/r2", 404, false), out _);
+        Assert.True(detector.Observe(new RequestFeature("c2", 0, 5, "/r2", 404, false), out reason) && reason == "4xx_spike");
 
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 500, false), out reason) && reason == "5xx_spike");
+        // single 5xx triggers immediately when threshold is zero
+        Assert.True(detector.Observe(new RequestFeature("c3", 0, 5, "/r3", 500, false), out reason) && reason == "5xx_spike");
 
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false, true), out reason) && reason == "waf_spike");
+        // WAF hit flagged instantly
+        Assert.True(detector.Observe(new RequestFeature("c4", 0, 5, "/r4", 200, false, true), out reason) && reason == "waf_spike");
+
+        // low user-agent entropy
+        Assert.True(detector.Observe(new RequestFeature("c5", 0, 0, "/r5", 200, false), out reason) && reason == "ua_low_entropy");
     }
 
+    /// <summary>
+    /// Uses MlAnomalyDetector in ML mode to verify that it buffers a
+    /// small baseline of nominal traffic before reporting an outlier once trained.
+    /// </summary>
     [Fact]
     public void MlDetectorWarmsUpAndScores()
     {
@@ -51,6 +69,10 @@ public class AnomalyDetectionTests
         Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out var reason) && reason == "ml_outlier");
     }
 
+    /// <summary>
+    /// Configures a HybridDetector composed of rule and ML detectors and
+    /// verifies that rule-based anomalies take precedence over ML scoring.
+    /// </summary>
     [Fact]
     public void HybridAppliesRulesFirst()
     {
@@ -61,7 +83,8 @@ public class AnomalyDetectionTests
             WafThreshold = 0,
             UaEntropyThreshold = 0
         };
-        var rules = new RollingThresholdDetector(Options.Create(settings));
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var rules = new RollingThresholdDetector(Options.Create(settings), cache);
         var ml = new MlAnomalyDetector(Options.Create(settings));
         var hybrid = new HybridDetector(rules, ml);
 
@@ -74,6 +97,10 @@ public class AnomalyDetectionTests
         Assert.Equal("waf_spike", reason);
     }
 
+    /// <summary>
+    /// Feeds a labeled dataset through MlAnomalyDetector with ML enabled
+    /// and asserts it yields few false positives while capturing most true anomalies.
+    /// </summary>
     [Fact]
     public void MlDetectorDetectsLabeledDataset()
     {
