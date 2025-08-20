@@ -84,6 +84,7 @@ builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSecti
 
 builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
 builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
+builder.Services.AddSingleton<IFeatureSource>(sp => sp.GetRequiredService<IRequestFeatureQueue>());
 builder.Services.AddSingleton<RollingThresholdDetector>();
 builder.Services.AddSingleton<MlAnomalyDetector>();
 builder.Services.AddSingleton<IAnomalyDetector>(sp =>
