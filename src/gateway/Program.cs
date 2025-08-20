@@ -15,6 +15,7 @@ using OpenTelemetry.Trace;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,9 +82,25 @@ builder.Services
 builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
 builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
-builder.Services.AddSingleton<FeatureConsumer>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<FeatureConsumer>());
+builder.Services.AddSingleton<RollingThresholdDetector>();
+builder.Services.AddSingleton<MlAnomalyDetector>();
+builder.Services.AddSingleton<IAnomalyDetector>(sp =>
+{
+    var settings = sp.GetRequiredService<IOptions<AnomalyDetectionSettings>>().Value;
+    return settings.Mode switch
+    {
+        DetectionMode.Rules => sp.GetRequiredService<RollingThresholdDetector>(),
+        DetectionMode.Ml => sp.GetRequiredService<MlAnomalyDetector>(),
+        DetectionMode.Hybrid => new HybridDetector(
+            sp.GetRequiredService<RollingThresholdDetector>(),
+            sp.GetRequiredService<MlAnomalyDetector>()),
+        _ => sp.GetRequiredService<RollingThresholdDetector>()
+    };
+});
+builder.Services.AddSingleton<AnomalyDetectionService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetectionService>());
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(rb => rb.AddService("gateway"))

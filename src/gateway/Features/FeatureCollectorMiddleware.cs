@@ -23,10 +23,13 @@ public class FeatureCollectorMiddleware
         var ua = context.Request.Headers.UserAgent.ToString();
         var uaEntropy = CalculateEntropy(ua);
         var path = context.Request.Path.ToString();
+        var method = context.Request.Method;
+        var routeKey = NormalizeRoute(path);
         var status = context.Response.StatusCode;
         var schemaError = context.Items.ContainsKey("SchemaError");
+        var wafHit = context.Items.ContainsKey("WafHit");
 
-        var feature = new RequestFeature(clientId, rpsWindow, uaEntropy, path, status, schemaError);
+        var feature = new RequestFeature(clientId, rpsWindow, uaEntropy, path, status, schemaError, wafHit, method, routeKey);
         _queue.Enqueue(feature);
     }
 
@@ -41,5 +44,12 @@ public class FeatureCollectorMiddleware
             entropy -= p * Math.Log2(p);
         }
         return entropy;
+    }
+
+    private static string NormalizeRoute(string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0) return "/";
+        return "/" + string.Join('/', segments.Take(2));
     }
 }

@@ -6,4 +6,7 @@ public record RequestFeature(
     double UaEntropy,
     string Path,
     int Status,
-    bool SchemaError);
+    bool SchemaError,
+    bool WafHit = false,
+    string Method = "GET",
+    string RouteKey = "");
