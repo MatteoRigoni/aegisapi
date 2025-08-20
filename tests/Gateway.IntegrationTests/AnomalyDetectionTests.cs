@@ -1,6 +1,8 @@
 ﻿using Gateway.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Threading;
 using Xunit;
 
@@ -203,31 +205,49 @@ public class AnomalyDetectionTests
     /// Confirms baseline training ignores “dirty” samples (e.g., WAF/SchemaError) so they don’t contaminate the model;
     /// once clean samples arrive, anomalies are detected as expected.
     /// </summary>
+    /// <summary>
+    /// Baseline must ignore dirty samples (WAF/SchemaError). With only dirty samples,
+    /// the detector stays untrained; a spike should NOT be flagged. After feeding clean
+    /// samples to reach BaselineSampleSize, the spike SHOULD be flagged.
+    /// Uses isolated persistence paths to avoid cross-test interference.
+    /// </summary>
     [Fact]
     public void MlDetector_ExcludesFlaggedSamples_FromBaseline()
     {
-        var settings = new AnomalyDetectionSettings
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_hygiene_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
         {
-            BaselineSampleSize = 10,
-            ScoreQuantile = 0.99,
-            MinVarianceGuard = 999, // fallback path for determinism
-            UseIsolationForest = false
-        };
-        var ml = new MlAnomalyDetector(Options.Create(settings));
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 10,
+                ScoreQuantile = 0.99,
+                MinVarianceGuard = 999, // deterministic fallback if/when trained
+                UseIsolationForest = false,
+                ModelPath = Path.Combine(dir, "model.zip"),
+                ThresholdPath = Path.Combine(dir, "thr.txt")
+            };
+            var ml = new MlAnomalyDetector(Options.Create(settings));
 
-        // Feed only flagged samples (schema errors) -> baseline MUST NOT complete
-        for (int i = 0; i < 10; i++)
-            ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, SchemaError: true), out _);
+            // Feed ONLY dirty samples -> baseline MUST NOT complete
+            for (int i = 0; i < 10; i++)
+                ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, SchemaError: true), out _);
 
-        // Not trained yet -> even a clear spike should return false (no decision)
-        Assert.False(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+            // Still untrained -> even a clear spike should return false
+            Assert.False(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
 
-        // Now feed clean samples to meet baseline
-        for (int i = 0; i < 10; i++)
-            ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+            // Now feed clean samples to reach baseline
+            for (int i = 0; i < settings.BaselineSampleSize; i++)
+                ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
 
-        // After baseline, spike should be detected
-        Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+            // After baseline, spike should be detected
+            Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* best effort */ }
+        }
     }
 
     /// <summary>
@@ -288,5 +308,174 @@ public class AnomalyDetectionTests
         {
             try { Directory.Delete(dir, true); } catch { /* best effort */ }
         }
+    }
+
+    /// <summary>
+    /// Ensures periodic retrain re-calibrates threshold upward when “normal” traffic drifts higher.
+    /// </summary>
+    [Fact]
+    public void MlDetector_Retrain_RecalibratesThreshold()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_retrain_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
+        {
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 30,
+                MinSamplesGuard = 10,
+                TrainingWindowMinutes = 60,
+                RetrainIntervalMinutes = 60,
+                MinVarianceGuard = 1e-6,
+                ScoreQuantile = 0.95,
+                UseIsolationForest = false,
+                ModelPath = Path.Combine(dir, "model.zip"),
+                ThresholdPath = Path.Combine(dir, "thr.txt")
+            };
+
+            var ml = new MlAnomalyDetector(Options.Create(settings));
+
+            // Baseline: low RPS (1 or 2)
+            for (int i = 0; i < 30; i++)
+                ml.Observe(new RequestFeature("c", 1 + (i % 2), 3.0, "/r", 200, false), out _);
+
+            var holder = typeof(MlAnomalyDetector).GetField("_holder", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ml)!;
+            var thrProp = holder.GetType().GetProperty("Threshold")!;
+            var thrBefore = (double)thrProp.GetValue(holder)!;
+
+            // New clean data with higher RPS (3 or 4)
+            for (int i = 0; i < 50; i++)
+                ml.Observe(new RequestFeature("c", 3 + (i % 2), 3.0, "/r", 200, false), out _);
+
+            // Trigger retrain (invoke private method to avoid waiting for timer)
+            var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+
+            var thrAfter = (double)thrProp.GetValue(holder)!;
+            Assert.True(thrAfter > thrBefore, "Expected threshold to increase after drift to higher RPS.");
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Validates thread-safety: many concurrent Observe() calls use the pooled PredictionEngine without errors.
+    /// </summary>
+    [Fact]
+    public void MlDetector_ConcurrentObserve_IsThreadSafe()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 40,
+            MinSamplesGuard = 20,
+            TrainingWindowMinutes = 60,
+            RetrainIntervalMinutes = 60,
+            MinVarianceGuard = 1e-6,
+            ScoreQuantile = 0.99,
+            UseIsolationForest = false
+        };
+
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+
+        // Baseline with variance
+        for (int i = 0; i < 40; i++)
+            ml.Observe(new RequestFeature("c", 1 + (i % 3), 3.0, "/r", 200, false), out _);
+
+        int anomalies = 0;
+        int total = 5000;
+        var ex = new ConcurrentQueue<Exception>();
+
+        Parallel.For(0, total, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, i =>
+        {
+            try
+            {
+                var rps = (i % 10 == 0) ? 50 : 1; // occasional spike
+                if (ml.Observe(new RequestFeature("c", rps, 3.0, "/r", 200, false), out _))
+                    Interlocked.Increment(ref anomalies);
+            }
+            catch (Exception e) { ex.Enqueue(e); }
+        });
+
+        Assert.True(ex.IsEmpty, $"No exceptions expected. First: {ex.FirstOrDefault()?.Message}");
+        Assert.True(anomalies > 0, "Some spikes should be flagged under contention.");
+        Assert.True(anomalies < total / 5, "Anomaly rate should be well below 20% for this mix.");
+    }
+
+    /// <summary>
+    /// Confirms startup resilience: corrupt persisted model/threshold triggers warm-up then recovery to a working state.
+    /// </summary>
+    [Fact]
+    public void MlDetector_LoadCorruptModel_FallsBackToWarmup()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_corrupt_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        try
+        {
+            var modelPath = Path.Combine(dir, "model.zip");
+            var thrPath = Path.Combine(dir, "thr.txt");
+
+            File.WriteAllText(modelPath, "not-a-valid-mlnet-model");
+            File.WriteAllText(thrPath, "NaN");
+
+            var settings = new AnomalyDetectionSettings
+            {
+                BaselineSampleSize = 10,
+                MinSamplesGuard = 5,
+                TrainingWindowMinutes = 60,
+                RetrainIntervalMinutes = 60,
+                MinVarianceGuard = 999, // ensures fallback after warm-up
+                UseIsolationForest = false,
+                ModelPath = modelPath,
+                ThresholdPath = thrPath
+            };
+
+            var ml = new MlAnomalyDetector(Options.Create(settings));
+
+            // Initially not trained → even a spike isn't flagged
+            Assert.False(ml.Observe(new RequestFeature("c", 50, 3.0, "/r", 200, false), out _));
+
+            // Warm-up with clean samples enables detector
+            for (int i = 0; i < 10; i++)
+                ml.Observe(new RequestFeature("c", 1, 3.0, "/r", 200, false), out _);
+
+            Assert.True(ml.Observe(new RequestFeature("c", 50, 3.0, "/r", 200, false), out _));
+        }
+        finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Ensures in Hybrid mode that when rules are effectively disabled, ML still detects outliers.
+    /// </summary>
+    [Fact]
+    public void Hybrid_MlFires_WhenRulesDont()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            // Raise rule thresholds so rules never trigger in this test
+            RpsThreshold = 10_000,
+            FourXxThreshold = int.MaxValue,
+            FiveXxThreshold = int.MaxValue,
+            WafThreshold = int.MaxValue,
+            UaEntropyThreshold = 0,
+
+            Mode = DetectionMode.Hybrid,
+            BaselineSampleSize = 20,
+            MinVarianceGuard = 999, // deterministic fallback for this test
+            UseIsolationForest = false
+        };
+
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var rules = new RollingThresholdDetector(Options.Create(settings), cache);
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+        var hybrid = new HybridDetector(rules, ml);
+
+        // Warm-up for ML
+        for (int i = 0; i < 20; i++)
+            hybrid.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+
+        // High RPS should be caught by ML even though rules won't fire
+        Assert.True(hybrid.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out var reason));
+        Assert.Equal("ml_outlier", reason);
     }
 }
