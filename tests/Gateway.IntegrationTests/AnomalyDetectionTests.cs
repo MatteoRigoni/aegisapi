@@ -125,6 +125,20 @@ public class AnomalyDetectionTests
     }
 
     /// <summary>
+    /// Verifies that enabling IsolationForest triggers a fail-fast exception since it is unsupported.
+    /// </summary>
+    [Fact]
+    public void MlDetector_UseIsolationForest_Throws()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            UseIsolationForest = true
+        };
+
+        Assert.Throws<NotImplementedException>(() => new MlAnomalyDetector(Options.Create(settings)));
+    }
+
+    /// <summary>
     /// Feeds a labeled dataset through MlAnomalyDetector with ML enabled
     /// and asserts it yields few false positives while capturing most true anomalies.
     /// </summary>
@@ -251,6 +265,35 @@ public class AnomalyDetectionTests
     }
 
     /// <summary>
+    /// Regression test ensuring constant non-zero features do not cause NaNs during baseline training.
+    /// </summary>
+    [Fact]
+    public void MlDetector_ConstantFeature_DoesNotNaN()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 10,
+            MinSamplesGuard = 5,
+            TrainingWindowMinutes = 60,
+            RetrainIntervalMinutes = 60,
+            MinVarianceGuard = 1e-6,
+            UseIsolationForest = false
+        };
+
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+
+        // Baseline where UaEntropy is constant but RPS and Method vary
+        for (int i = 0; i < 10; i++)
+        {
+            var method = (i % 2 == 0) ? "GET" : "POST";
+            ml.Observe(new RequestFeature("c", 1 + (i % 2), 7.0, "/r", 200, false, false, method), out _);
+        }
+
+        Assert.True(ml.Observe(new RequestFeature("c", 50, 7.0, "/r", 200, false), out var reason));
+        Assert.Equal("ml_outlier", reason);
+    }
+
+    /// <summary>
     /// Validates that the chosen quantile sets the false-positive budget:
     /// with fallback scoring (Score = RPS), normals rarely exceed the threshold,
     /// while spikes (higher RPS) are flagged as anomalies.
@@ -356,6 +399,52 @@ public class AnomalyDetectionTests
             Assert.True(thrAfter > thrBefore, "Expected threshold to increase after drift to higher RPS.");
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Ensures retraining prunes samples outside the training window before recalibration.
+    /// </summary>
+    [Fact]
+    public void MlDetector_Retrain_PrunesOldSamples()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 5,
+            MinSamplesGuard = 3,
+            TrainingWindowMinutes = 1,
+            RetrainIntervalMinutes = 60,
+            MinVarianceGuard = 1e-6,
+            UseIsolationForest = false
+        };
+
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+
+        // Baseline low RPS
+        for (int i = 0; i < 5; i++)
+            ml.Observe(new RequestFeature("c", 1, 3.0, "/r", 200, false), out _);
+
+        var holder = typeof(MlAnomalyDetector).GetField("_holder", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ml)!;
+        var thrProp = holder.GetType().GetProperty("Threshold")!;
+        var thrBefore = (double)thrProp.GetValue(holder)!;
+
+        // Make baseline samples old
+        var bufField = typeof(MlAnomalyDetector).GetField("_buffer", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var queue = (ConcurrentQueue<(DateTime ts, float[] vec)>)bufField.GetValue(ml)!;
+        var arr = queue.ToArray();
+        while (queue.TryDequeue(out _)) { }
+        foreach (var e in arr)
+            queue.Enqueue((DateTime.UtcNow - TimeSpan.FromMinutes(5), e.vec));
+
+        // Add new high-RPS current samples
+        for (int i = 0; i < 5; i++)
+            ml.Observe(new RequestFeature("c", 10, 3.0, "/r", 200, false), out _);
+
+        // Retrain and ensure old samples are pruned
+        var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+
+        var thrAfter = (double)thrProp.GetValue(holder)!;
+        Assert.True(thrAfter > thrBefore, $"Expected threshold to increase, before={thrBefore}, after={thrAfter}");
     }
 
     /// <summary>
