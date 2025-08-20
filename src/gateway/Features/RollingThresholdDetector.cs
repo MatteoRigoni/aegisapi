@@ -24,7 +24,7 @@ public class RollingThresholdDetector : IAnomalyDetector
         {
             entry.SlidingExpiration = TimeSpan.FromMinutes(_settings.WindowTtlMinutes);
             return new Window(_settings.RpsWindowSeconds, _settings.ErrorWindowSeconds);
-        });
+        }) ?? throw new InvalidOperationException("Failed to create cache window.");
 
         window.Add(feature, now);
 
