@@ -1,4 +1,4 @@
-using Microsoft.ML;
+﻿using Microsoft.ML;
 using Microsoft.Extensions.ObjectPool;
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -23,6 +23,7 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
     public MlAnomalyDetector(IOptions<AnomalyDetectionSettings> options)
     {
         _settings = options.Value;
+
         TryLoadModel();
         _retrainLoop = Task.Run(() => RetrainLoopAsync(_cts.Token));
     }
@@ -74,11 +75,7 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var dv = _ml.Data.LoadFromEnumerable(data);
         var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
             .Append(_settings.UseIsolationForest
-                ? _ml.AnomalyDetection.Trainers.IsolationForest(
-                    new Microsoft.ML.Trainers.IsolationForestTrainer.Options
-                    {
-                        FeatureColumnName = nameof(AnomalyVector.Features)
-                    })
+                ? throw new NotImplementedException("IsolationForest not supported in ML.Net")
                 : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
         var model = pipeline.Fit(dv);
         var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
@@ -109,11 +106,7 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var dv = _ml.Data.LoadFromEnumerable(data);
         var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
             .Append(_settings.UseIsolationForest
-                ? _ml.AnomalyDetection.Trainers.IsolationForest(
-                    new Microsoft.ML.Trainers.IsolationForestTrainer.Options
-                    {
-                        FeatureColumnName = nameof(AnomalyVector.Features)
-                    })
+                ? throw new NotImplementedException("IsolationForest not supported in ML.Net")
                 : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
         var model = pipeline.Fit(dv);
         var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));

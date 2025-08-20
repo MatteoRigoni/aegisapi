@@ -1,6 +1,7 @@
 using System.Threading;
 using Microsoft.ML;
 using Microsoft.Extensions.ObjectPool;
+using Microsoft.ML.Data;
 
 namespace Gateway.Features;
 
