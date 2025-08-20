@@ -1,7 +1,10 @@
 using Microsoft.ML;
+using Microsoft.Extensions.ObjectPool;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Options;
+using System.IO;
 
 namespace Gateway.Features;
 
@@ -9,17 +12,19 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
 {
     private readonly AnomalyDetectionSettings _settings;
     private readonly MLContext _ml = new();
+    private readonly DefaultObjectPoolProvider _poolProvider = new();
     private readonly ModelHolder _holder = new();
     private readonly ConcurrentQueue<(DateTime ts, float[] vec)> _buffer = new();
-    private readonly Timer _timer;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Task _retrainLoop;
+    private int _retraining;
     private bool _trained;
 
     public MlAnomalyDetector(IOptions<AnomalyDetectionSettings> options)
     {
         _settings = options.Value;
-        _timer = new Timer(_ => Retrain(), null,
-            TimeSpan.FromMinutes(_settings.RetrainIntervalMinutes),
-            TimeSpan.FromMinutes(_settings.RetrainIntervalMinutes));
+        TryLoadModel();
+        _retrainLoop = Task.Run(() => RetrainLoopAsync(_cts.Token));
     }
 
     public bool Observe(RequestFeature feature, out string reason)
@@ -38,14 +43,22 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             return false;
         }
 
-        var engine = _holder.Engine;
-        if (engine is null)
+        var pool = _holder.Pool;
+        if (pool is null)
             return false;
-
-        var prediction = engine.Predict(new AnomalyVector { Features = vector });
+        var engine = pool.Get();
+        AnomalyPrediction prediction;
+        try
+        {
+            prediction = engine.Predict(new AnomalyVector { Features = vector });
+        }
+        finally
+        {
+            pool.Return(engine);
+        }
         if (prediction.Score > _holder.Threshold)
         {
-            reason = "ml anomaly";
+            reason = "ml_outlier";
             return true;
         }
 
@@ -59,16 +72,26 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
     {
         var data = _buffer.Select(b => new AnomalyVector { Features = b.vec }).ToList();
         var dv = _ml.Data.LoadFromEnumerable(data);
-        var model = _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)).Fit(dv);
-        var engine = _ml.Model.CreatePredictionEngine<AnomalyVector, AnomalyPrediction>(model);
-        var scores = data.Select(d => engine.Predict(d).Score).OrderBy(s => s).ToArray();
+        var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
+            .Append(_settings.UseIsolationForest
+                ? _ml.AnomalyDetection.Trainers.IsolationForest(nameof(AnomalyVector.Features))
+                : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
+        var model = pipeline.Fit(dv);
+        var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
+        var scores = data.Select(d =>
+        {
+            var eng = pool.Get();
+            try { return eng.Predict(d).Score; }
+            finally { pool.Return(eng); }
+        }).OrderBy(s => s).ToArray();
         var idx = (int)Math.Floor(_settings.ScoreQuantile * (scores.Length - 1));
         var threshold = scores[idx];
-        _holder.Swap(engine, threshold);
+        _holder.Swap(pool, threshold);
+        SaveModel(model, threshold);
         _trained = true;
     }
 
-    private void Retrain()
+    private async Task RetrainAsync()
     {
         if (!_trained) return;
         var cutoff = DateTime.UtcNow - TimeSpan.FromMinutes(_settings.TrainingWindowMinutes);
@@ -80,12 +103,35 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         if (Variance(data) < _settings.MinVarianceGuard)
             return;
         var dv = _ml.Data.LoadFromEnumerable(data);
-        var model = _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)).Fit(dv);
-        var engine = _ml.Model.CreatePredictionEngine<AnomalyVector, AnomalyPrediction>(model);
-        var scores = data.Select(d => engine.Predict(d).Score).OrderBy(s => s).ToArray();
+        var pipeline = _ml.Transforms.NormalizeMeanVariance(nameof(AnomalyVector.Features))
+            .Append(_settings.UseIsolationForest
+                ? _ml.AnomalyDetection.Trainers.IsolationForest(nameof(AnomalyVector.Features))
+                : _ml.AnomalyDetection.Trainers.RandomizedPca(nameof(AnomalyVector.Features)));
+        var model = pipeline.Fit(dv);
+        var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
+        var scores = data.Select(d =>
+        {
+            var eng = pool.Get();
+            try { return eng.Predict(d).Score; }
+            finally { pool.Return(eng); }
+        }).OrderBy(s => s).ToArray();
         var idx = (int)Math.Floor(_settings.ScoreQuantile * (scores.Length - 1));
         var threshold = scores[idx];
-        _holder.Swap(engine, threshold);
+        _holder.Swap(pool, threshold);
+        SaveModel(model, threshold);
+        await Task.CompletedTask;
+    }
+
+    private async Task RetrainLoopAsync(CancellationToken token)
+    {
+        var periodic = new PeriodicTimer(TimeSpan.FromMinutes(_settings.RetrainIntervalMinutes));
+        while (await periodic.WaitForNextTickAsync(token))
+        {
+            if (Interlocked.Exchange(ref _retraining, 1) == 1)
+                continue;
+            try { await RetrainAsync(); }
+            finally { Interlocked.Exchange(ref _retraining, 0); }
+        }
     }
 
     private static double Variance(IEnumerable<AnomalyVector> data)
@@ -112,11 +158,63 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             (float)f.RpsWindow,
             f.Status is >=400 and <500 ? 1 : 0,
             f.Status >=500 ? 1 : 0,
-            f.WafHit ? 1 : 0
+            f.WafHit ? 1 : 0,
+            (float)f.UaEntropy,
+            string.Equals(f.Method, "POST", StringComparison.OrdinalIgnoreCase) ? 1f : 0f
         };
 
     public void Dispose()
     {
-        _timer.Dispose();
+        _cts.Cancel();
+        try { _retrainLoop.Wait(); } catch { }
+        _cts.Dispose();
+    }
+
+    private void SaveModel(ITransformer model, double threshold)
+    {
+        try
+        {
+            using var fs = File.Create(_settings.ModelPath);
+            _ml.Model.Save(model, null, fs);
+            File.WriteAllText(_settings.ThresholdPath, threshold.ToString(CultureInfo.InvariantCulture));
+        }
+        catch
+        {
+            // best effort
+        }
+    }
+
+    private void TryLoadModel()
+    {
+        try
+        {
+            if (File.Exists(_settings.ModelPath) && File.Exists(_settings.ThresholdPath))
+            {
+                using var fs = File.OpenRead(_settings.ModelPath);
+                var model = _ml.Model.Load(fs, out _);
+                var threshold = double.Parse(File.ReadAllText(_settings.ThresholdPath), CultureInfo.InvariantCulture);
+                var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
+                _holder.Swap(pool, threshold);
+                _trained = true;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private sealed class PredictionEnginePooledObjectPolicy : IPooledObjectPolicy<PredictionEngine<AnomalyVector, AnomalyPrediction>>
+    {
+        private readonly MLContext _ml;
+        private readonly ITransformer _model;
+        public PredictionEnginePooledObjectPolicy(MLContext ml, ITransformer model)
+        {
+            _ml = ml;
+            _model = model;
+        }
+        public PredictionEngine<AnomalyVector, AnomalyPrediction> Create()
+            => _ml.Model.CreatePredictionEngine<AnomalyVector, AnomalyPrediction>(_model);
+        public bool Return(PredictionEngine<AnomalyVector, AnomalyPrediction> obj) => true;
     }
 }

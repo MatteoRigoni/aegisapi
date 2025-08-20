@@ -7,4 +7,6 @@ public record RequestFeature(
     string Path,
     int Status,
     bool SchemaError,
-    bool WafHit = false);
+    bool WafHit = false,
+    string Method = "GET",
+    string RouteKey = "");

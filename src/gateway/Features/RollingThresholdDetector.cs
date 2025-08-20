@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace Gateway.Features;
@@ -7,43 +7,48 @@ namespace Gateway.Features;
 public class RollingThresholdDetector : IAnomalyDetector
 {
     private readonly AnomalyDetectionSettings _settings;
-    private readonly ConcurrentDictionary<(string client, string route), Window> _windows = new();
+    private readonly IMemoryCache _cache;
 
-    public RollingThresholdDetector(IOptions<AnomalyDetectionSettings> options)
+    public RollingThresholdDetector(IOptions<AnomalyDetectionSettings> options, IMemoryCache cache)
     {
         _settings = options.Value;
+        _cache = cache;
     }
 
     public bool Observe(RequestFeature feature, out string reason)
     {
-        var key = (feature.ClientId ?? "unknown", feature.Path);
+        var key = (feature.ClientId ?? "unknown", feature.RouteKey);
         var now = DateTime.UtcNow;
-        var window = _windows.GetOrAdd(key, _ => new Window(_settings.RpsWindowSeconds, _settings.ErrorWindowSeconds));
+        var window = _cache.GetOrCreate(key, entry =>
+        {
+            entry.SlidingExpiration = TimeSpan.FromMinutes(_settings.WindowTtlMinutes);
+            return new Window(_settings.RpsWindowSeconds, _settings.ErrorWindowSeconds);
+        });
         window.Add(feature, now);
 
         if (window.Rps > _settings.RpsThreshold)
         {
-            reason = "rps spike";
+            reason = "rps_spike";
             return true;
         }
         if (window.FourXx > _settings.FourXxThreshold)
         {
-            reason = "4xx spike";
+            reason = "4xx_spike";
             return true;
         }
         if (window.FiveXx > _settings.FiveXxThreshold)
         {
-            reason = "5xx spike";
+            reason = "5xx_spike";
             return true;
         }
         if (window.WafHits > _settings.WafThreshold)
         {
-            reason = "waf spike";
+            reason = "waf_spike";
             return true;
         }
         if (feature.UaEntropy < _settings.UaEntropyThreshold)
         {
-            reason = "low ua entropy";
+            reason = "ua_low_entropy";
             return true;
         }
 

@@ -13,21 +13,22 @@ AegisAPI separates feature extraction from anomaly detection so that different d
 - Both the middleware and the detector service use this queue to decouple producers from consumers.
 
 ## 3. Detectors
-`AnomalyDetectionService` pulls features from the queue and delegates to a detector implementation selected by `AnomalyDetectionSettings.Mode`:
+`AnomalyDetectionService` pulls features from the queue and delegates to a detector implementation selected by `AnomalyDetectionSettings.Mode`.
+Each anomaly increments an OpenTelemetry counter (`aegis.anomalies`) tagged with the reason and detector type and is logged at information level.
 
 ### Rolling Thresholds
-- `RollingThresholdDetector` keeps per-(client, route) windows of request timestamps.
-- It flags anomalies when configured thresholds are exceeded for
+`RollingThresholdDetector` keeps per-(client, route) windows of request timestamps in an `IMemoryCache` with idle expiration to evict inactive keys.
+It flags anomalies when configured thresholds are exceeded for
   - requests per second (RPS),
   - 4xx/5xx errors,
   - WAF hits,
   - or when the user-agent entropy drops below a minimum.
 
 ### ML.NET (optional)
-- `MlAnomalyDetector` warms up by buffering only non-anomalous events until `BaselineSampleSize` is reached.
-- It trains a Randomized PCA model and derives a score threshold from the `ScoreQuantile` of training scores.
-- During active detection, it scores `[RPS, 4xx, 5xx, WAF]` vectors; scores above the threshold are reported as anomalies.
-- A background timer retrains the model every `RetrainIntervalMinutes` using recent buffered events, guarded by `MinSamplesGuard` and `MinVarianceGuard` to avoid unstable models.
+`MlAnomalyDetector` warms up by buffering only non-anomalous events until `BaselineSampleSize` is reached.
+It trains an Isolation Forest (or Randomized PCA) pipeline with mean-variance normalization and derives a score threshold from the `ScoreQuantile` of training scores.
+During active detection, it scores `[RPS, 4xx, 5xx, WAF, UA entropy, method]` vectors using a thread-safe prediction-engine pool; scores above the threshold are reported as `ml_outlier` anomalies.
+A `PeriodicTimer` retrains the model every `RetrainIntervalMinutes` on recent buffered events with anti-reentrancy guards, and the model plus threshold are persisted to disk so a restart can skip warm-up.
 
 ### Hybrid
 - `HybridDetector` applies rolling thresholds first and only invokes the ML detector if the rules consider the event nominal.

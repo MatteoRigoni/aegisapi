@@ -21,14 +21,14 @@ public class AnomalyDetectionTests
         // produce 6 requests quickly to exceed RPS threshold (5 over 5s)
         for (int i = 0; i < 6; i++)
             detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false), out _);
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false), out var reason) && reason == "rps spike");
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false), out var reason) && reason == "rps_spike");
 
         detector.Observe(new RequestFeature("c", 0, 5, "/r", 404, false), out _);
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 404, false), out reason) && reason == "4xx spike");
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 404, false), out reason) && reason == "4xx_spike");
 
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 500, false), out reason) && reason == "5xx spike");
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 500, false), out reason) && reason == "5xx_spike");
 
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false, true), out reason) && reason == "waf spike");
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r", 200, false, true), out reason) && reason == "waf_spike");
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class AnomalyDetectionTests
             Assert.False(ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _));
 
         // After training, anomaly with high RPS
-        Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out var reason) && reason == "ml anomaly");
+        Assert.True(ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out var reason) && reason == "ml_outlier");
     }
 
     [Fact]
@@ -71,6 +71,36 @@ public class AnomalyDetectionTests
 
         // event triggering rule
         Assert.True(hybrid.Observe(new RequestFeature("c", 1, 5, "/r", 200, false, true), out var reason));
-        Assert.Equal("waf spike", reason);
+        Assert.Equal("waf_spike", reason);
+    }
+
+    [Fact]
+    public void MlDetectorDetectsLabeledDataset()
+    {
+        var settings = new AnomalyDetectionSettings
+        {
+            Mode = DetectionMode.Ml,
+            BaselineSampleSize = 80,
+            TrainingWindowMinutes = 60,
+            RetrainIntervalMinutes = 60,
+            UseMl = true
+        };
+        var ml = new MlAnomalyDetector(Options.Create(settings));
+
+        for (int i = 0; i < 80; i++)
+            ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _);
+
+        int fp = 0;
+        for (int i = 0; i < 80; i++)
+            if (ml.Observe(new RequestFeature("c", 1, 5, "/r", 200, false), out _))
+                fp++;
+
+        int tp = 0;
+        for (int i = 0; i < 20; i++)
+            if (ml.Observe(new RequestFeature("c", 50, 5, "/r", 200, false), out _))
+                tp++;
+
+        Assert.True(tp >= 15);
+        Assert.True(fp <= 1);
     }
 }

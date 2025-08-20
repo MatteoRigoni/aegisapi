@@ -1,26 +1,27 @@
 using System.Threading;
 using Microsoft.ML;
+using Microsoft.Extensions.ObjectPool;
 
 namespace Gateway.Features;
 
 public class ModelHolder
 {
-    private PredictionEngine<AnomalyVector, AnomalyPrediction>? _engine;
+    private ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>>? _pool;
     private double _threshold;
 
-    public PredictionEngine<AnomalyVector, AnomalyPrediction>? Engine => Volatile.Read(ref _engine);
+    public ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>>? Pool => Volatile.Read(ref _pool);
     public double Threshold => Volatile.Read(ref _threshold);
 
-    public void Swap(PredictionEngine<AnomalyVector, AnomalyPrediction> engine, double threshold)
+    public void Swap(ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>> pool, double threshold)
     {
-        Interlocked.Exchange(ref _engine, engine);
+        Interlocked.Exchange(ref _pool, pool);
         Interlocked.Exchange(ref _threshold, threshold);
     }
 }
 
 public class AnomalyVector
 {
-    [VectorType(4)]
+    [VectorType(6)]
     public float[] Features { get; set; } = Array.Empty<float>();
 }
 
