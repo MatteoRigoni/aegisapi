@@ -63,11 +63,11 @@ public class AnomalyDetectionTests
         var detector = new RollingThresholdDetector(Options.Create(settings), cache);
 
         // Trigger spike on /r1 for client "c"
-        detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false), out _);
-        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false), out var reason) && reason == "rps_spike");
+        detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false, false, "GET", "/r1"), out _);
+        Assert.True(detector.Observe(new RequestFeature("c", 0, 5, "/r1", 200, false, false, "GET", "/r1"), out var reason) && reason == "rps_spike");
 
         // Same client but different route should not be flagged
-        Assert.False(detector.Observe(new RequestFeature("c", 0, 5, "/r2", 200, false), out _));
+        Assert.False(detector.Observe(new RequestFeature("c", 0, 5, "/r2", 200, false, false, "GET", "/r2"), out _));
     }
 
     /// <summary>

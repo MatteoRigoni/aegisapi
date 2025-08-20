@@ -113,8 +113,9 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             return;
         }
 
-        // PCA pipeline with safe rank based on schema dimension
-        var pipeline = BuildPcaPipeline(dv);
+        // PCA pipeline with safe rank based on schema dimension and actual variance
+        var activeDim = NonZeroVarianceDims(data);
+        var pipeline = BuildPcaPipeline(dv, activeDim);
         var model = pipeline.Fit(dv);
 
         var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
@@ -161,7 +162,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         // If we are in fallback and now variance is OK -> switch to PCA.
         if (_fallbackActive && varOk)
         {
-            var pipeline = BuildPcaPipeline(dv);
+              var activeDim = NonZeroVarianceDims(data);
+              var pipeline = BuildPcaPipeline(dv, activeDim);
             var model = pipeline.Fit(dv);
 
             var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
@@ -185,7 +187,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             return;
 
         // PCA retrain
-        var pcaPipeline = BuildPcaPipeline(dv);
+          var activeDim = NonZeroVarianceDims(data);
+          var pcaPipeline = BuildPcaPipeline(dv, activeDim);
         var pcaModel = pcaPipeline.Fit(dv);
 
         var pcaPool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, pcaModel));
@@ -216,15 +219,15 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
 
     // ---- Helpers --------------------------------------------------------------
 
-    private IEstimator<ITransformer> BuildPcaPipeline(IDataView dv)
+    private IEstimator<ITransformer> BuildPcaPipeline(IDataView dv, int activeDim)
     {
         var featureCol = nameof(AnomalyVector.Features);
 
         // Infer vector dimension from schema and clamp PCA rank accordingly.
         var vecType = dv.Schema[featureCol].Type as VectorDataViewType;
         var dim = vecType?.Size ?? 0;
-        var wanted = 5;
-        var rank = Math.Max(2, dim > 0 ? Math.Min(wanted, dim) : wanted);
+        var wanted = Math.Min(5, dim);
+        var rank = Math.Max(1, Math.Min(wanted, activeDim > 0 ? activeDim : dim));
 
         var pca = new RandomizedPcaTrainer.Options
         {
@@ -275,6 +278,32 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
                 sum += diff * diff;
             }
         return sum / arr.Length;
+    }
+
+    private static int NonZeroVarianceDims(System.Collections.Generic.IEnumerable<AnomalyVector> data)
+    {
+        var arr = data.Select(d => d.Features ?? Array.Empty<float>()).ToArray();
+        if (arr.Length == 0) return 0;
+
+        var dim = arr[0].Length;
+        int count = 0;
+
+        for (int i = 0; i < dim; i++)
+        {
+            var first = arr[0][i];
+            bool varFound = false;
+            for (int j = 1; j < arr.Length; j++)
+            {
+                if (arr[j][i] != first)
+                {
+                    varFound = true;
+                    break;
+                }
+            }
+            if (varFound) count++;
+        }
+
+        return count;
     }
 
     private static double Quantile(float[] sorted, double q)

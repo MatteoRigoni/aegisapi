@@ -32,6 +32,9 @@ public class FeatureTests
                     ["AnomalyDetection:FiveXxThreshold"] = "0",
                     ["AnomalyDetection:WafThreshold"] = "0",
                     ["AnomalyDetection:UaEntropyThreshold"] = "0",
+                    // Override proxy routes to avoid forwarding to a non-existent backend during tests
+                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catch-all}",
+                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catch-all}",
                 });
             });
         });
