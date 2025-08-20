@@ -162,8 +162,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         // If we are in fallback and now variance is OK -> switch to PCA.
         if (_fallbackActive && varOk)
         {
-              var activeDim = NonZeroVarianceDims(data);
-              var pipeline = BuildPcaPipeline(dv, activeDim);
+            var activeDim2 = NonZeroVarianceDims(data);
+            var pipeline = BuildPcaPipeline(dv, activeDim2);
             var model = pipeline.Fit(dv);
 
             var pool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, model));
@@ -187,8 +187,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             return;
 
         // PCA retrain
-          var activeDim = NonZeroVarianceDims(data);
-          var pcaPipeline = BuildPcaPipeline(dv, activeDim);
+        var activeDim = NonZeroVarianceDims(data);
+        var pcaPipeline = BuildPcaPipeline(dv, activeDim);
         var pcaModel = pcaPipeline.Fit(dv);
 
         var pcaPool = _poolProvider.Create(new PredictionEnginePooledObjectPolicy(_ml, pcaModel));
