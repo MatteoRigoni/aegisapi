@@ -13,7 +13,7 @@ public class ModelHolder
     public ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>>? Pool => Volatile.Read(ref _pool);
     public double Threshold => Volatile.Read(ref _threshold);
 
-    public void Swap(ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>> pool, double threshold)
+    public void Swap(ObjectPool<PredictionEngine<AnomalyVector, AnomalyPrediction>>? pool, double threshold)
     {
         Interlocked.Exchange(ref _pool, pool);
         Interlocked.Exchange(ref _threshold, threshold);
