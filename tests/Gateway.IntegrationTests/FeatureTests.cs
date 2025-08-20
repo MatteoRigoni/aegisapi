@@ -75,6 +75,24 @@ public class FeatureTests
     }
 
     [Fact]
+    public async Task NormalizesRouteAndCapturesMethodAndUaEntropy()
+    {
+        await using var factory = CreateFactory();
+        var client = factory.CreateClient(); // no user-agent header
+
+        var response = await client.PostAsJsonAsync("/api/echo/deep/path", new { });
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var service = factory.Services.GetRequiredService<AnomalyDetectionService>();
+        await WaitForAnomaliesAsync(service, 1);
+
+        var (feature, _) = Assert.Single(service.Anomalies);
+        Assert.Equal("POST", feature.Method);
+        Assert.Equal("/api/echo", feature.RouteKey);
+        Assert.Equal(0, feature.UaEntropy);
+    }
+
+    [Fact]
     public async Task CanSeedFakeData()
     {
         await using var factory = CreateFactory();
