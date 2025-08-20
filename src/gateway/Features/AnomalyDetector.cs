@@ -11,6 +11,7 @@ public class AnomalyDetector : BackgroundService
     private readonly IRequestFeatureQueue _queue;
     private readonly AnomalyDetectionSettings _settings;
     private readonly ConcurrentDictionary<(string client, string path), SlidingWindow> _windows = new();
+    private DateTime _lastPrune = DateTime.UtcNow;
     private readonly MLContext? _mlContext;
     private readonly ITransformer? _mlModel;
     private readonly PredictionEngine<AnomalyVector, AnomalyPrediction>? _predictionEngine;
@@ -50,6 +51,17 @@ public class AnomalyDetector : BackgroundService
     private bool IsAnomaly(RequestFeature feature)
     {
         var now = DateTime.UtcNow;
+
+        if (now - _lastPrune > TimeSpan.FromSeconds(_settings.PruneIntervalSeconds))
+        {
+            foreach (var kv in _windows.ToArray())
+            {
+                if (now - kv.Value.LastEvent > TimeSpan.FromSeconds(_settings.WindowSeconds * 2))
+                    _windows.TryRemove(kv.Key, out _);
+            }
+            _lastPrune = now;
+        }
+
         var key = (feature.ClientId ?? "unknown", feature.Path);
         var window = _windows.GetOrAdd(key, _ => new SlidingWindow(TimeSpan.FromSeconds(_settings.WindowSeconds)));
         window.Add(feature, now);
@@ -59,9 +71,24 @@ public class AnomalyDetector : BackgroundService
         var five = window.FiveXx;
         var waf = window.WafHits;
 
-        if (rps > _settings.RpsThreshold || four > _settings.FourXxThreshold ||
-            five > _settings.FiveXxThreshold || waf > _settings.WafThreshold)
+        if (_settings.UseZScore && window.SampleCount > 0)
+        {
+            var (rMean, rStd) = window.RpsStats();
+            var (fMean, fStd) = window.FourStats();
+            var (fiMean, fiStd) = window.FiveStats();
+            var (wMean, wStd) = window.WafStats();
+
+            if ((rStd > 0 && rps > rMean + _settings.ZScoreK * rStd) ||
+                (fStd > 0 && four > fMean + _settings.ZScoreK * fStd) ||
+                (fiStd > 0 && five > fiMean + _settings.ZScoreK * fiStd) ||
+                (wStd > 0 && waf > wMean + _settings.ZScoreK * wStd))
+                return true;
+        }
+        else if (rps > _settings.RpsThreshold || four > _settings.FourXxThreshold ||
+                 five > _settings.FiveXxThreshold || waf > _settings.WafThreshold)
+        {
             return true;
+        }
 
         if (_settings.UseMl && _predictionEngine is not null)
         {
@@ -81,6 +108,14 @@ public class AnomalyDetector : BackgroundService
         private int _five;
         private int _waf;
 
+        private double _sumRps, _sumSqRps;
+        private double _sumFour, _sumSqFour;
+        private double _sumFive, _sumSqFive;
+        private double _sumWaf, _sumSqWaf;
+        private int _samples;
+
+        public DateTime LastEvent { get; private set; } = DateTime.MinValue;
+
         public SlidingWindow(TimeSpan window) => _window = window;
 
         public void Add(RequestFeature feature, DateTime now)
@@ -89,7 +124,19 @@ public class AnomalyDetector : BackgroundService
             if (feature.Status is >=400 and <500) _four++;
             if (feature.Status >=500) _five++;
             if (feature.WafHit) _waf++;
+            LastEvent = now;
             Cleanup(now);
+
+            var rps = Rps;
+            _samples++;
+            _sumRps += rps;
+            _sumSqRps += rps * rps;
+            _sumFour += _four;
+            _sumSqFour += _four * _four;
+            _sumFive += _five;
+            _sumSqFive += _five * _five;
+            _sumWaf += _waf;
+            _sumSqWaf += _waf * _waf;
         }
 
         private void Cleanup(DateTime now)
@@ -107,6 +154,21 @@ public class AnomalyDetector : BackgroundService
         public int FourXx => _four;
         public int FiveXx => _five;
         public int WafHits => _waf;
+
+        public int SampleCount => _samples;
+
+        private (double mean, double std) Stats(double sum, double sumSq)
+        {
+            if (_samples == 0) return (0, 0);
+            var mean = sum / _samples;
+            var variance = sumSq / _samples - mean * mean;
+            return (mean, Math.Sqrt(Math.Max(0, variance)));
+        }
+
+        public (double mean, double std) RpsStats() => Stats(_sumRps, _sumSqRps);
+        public (double mean, double std) FourStats() => Stats(_sumFour, _sumSqFour);
+        public (double mean, double std) FiveStats() => Stats(_sumFive, _sumSqFive);
+        public (double mean, double std) WafStats() => Stats(_sumWaf, _sumSqWaf);
     }
 
     private class AnomalyVector

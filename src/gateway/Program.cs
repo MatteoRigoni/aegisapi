@@ -81,10 +81,10 @@ builder.Services
 builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
 builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
 builder.Services.AddSingleton<FeatureConsumer>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FeatureConsumer>());
-builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
 builder.Services.AddSingleton<AnomalyDetector>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetector>());
 

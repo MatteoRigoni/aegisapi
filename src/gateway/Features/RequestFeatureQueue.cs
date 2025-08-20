@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.Options;
 
 namespace Gateway.Features;
 
@@ -11,7 +12,17 @@ public interface IRequestFeatureQueue
 
 public class RequestFeatureQueue : IRequestFeatureQueue
 {
-    private readonly Channel<RequestFeature> _channel = Channel.CreateUnbounded<RequestFeature>();
+    private readonly Channel<RequestFeature> _channel;
+
+    public RequestFeatureQueue(IOptions<AnomalyDetectionSettings> options)
+    {
+        var capacity = Math.Max(1, options.Value.FeatureQueueCapacity);
+        var opts = new BoundedChannelOptions(capacity)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest
+        };
+        _channel = Channel.CreateBounded<RequestFeature>(opts);
+    }
 
     public void Enqueue(RequestFeature feature)
     {

@@ -8,17 +8,21 @@ public class AnomalyDetectorTests
     [Fact]
     public async Task DetectsExpectedAnomalies()
     {
-        var queue = new RequestFeatureQueue();
-        var settings = Options.Create(new AnomalyDetectionSettings
+        var config = new AnomalyDetectionSettings
         {
             WindowSeconds = 1,
             RpsThreshold = 3,
             FourXxThreshold = 1,
             FiveXxThreshold = 0,
             WafThreshold = 0,
-            UseMl = false
-        });
-        var detector = new AnomalyDetector(queue, settings);
+            UseMl = false,
+            FeatureQueueCapacity = 100,
+            PruneIntervalSeconds = 60,
+            UseZScore = false
+        };
+        var options = Options.Create(config);
+        var queue = new RequestFeatureQueue(options);
+        var detector = new AnomalyDetector(queue, options);
         await detector.StartAsync(CancellationToken.None);
 
         // Normal traffic

@@ -9,4 +9,8 @@ public class AnomalyDetectionSettings
     public int WafThreshold { get; set; } = 0;
     public bool UseMl { get; set; } = false;
     public bool UseIsolationForest { get; set; } = false;
+    public bool UseZScore { get; set; } = false;
+    public double ZScoreK { get; set; } = 3.0;
+    public int FeatureQueueCapacity { get; set; } = 1000;
+    public int PruneIntervalSeconds { get; set; } = 60;
 }
