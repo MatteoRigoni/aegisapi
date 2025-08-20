@@ -82,17 +82,16 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             finally { pool.Return(engine); }
         }
 
+        // Keep collecting clean samples for future re-train
+        if (!feature.WafHit && !feature.SchemaError)
+            EnqueueBounded(vector);
+
         // Decision
         if (score > _holder.Threshold)
         {
             reason = "ml_outlier";
             return true;
         }
-
-        // Keep collecting clean samples for future re-train
-        if (!feature.WafHit && !feature.SchemaError)
-            EnqueueBounded(vector);
-
         return false;
     }
 
