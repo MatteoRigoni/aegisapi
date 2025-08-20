@@ -216,6 +216,57 @@ public class AnomalyDetectionTests
     }
 
     /// <summary>
+    /// Ensures a PCA-trained model persists and reloads correctly so a fresh detector
+    /// immediately flags outliers without re-warming the baseline.
+    /// </summary>
+    [Fact]
+    public void MlDetector_PersistsAndReloads_PcaModel()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_pca_" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+
+        var settings = new AnomalyDetectionSettings
+        {
+            BaselineSampleSize = 20,
+            MinSamplesGuard = 10,
+            TrainingWindowMinutes = 1,
+            RetrainIntervalMinutes = 60,
+            ScoreQuantile = 0.99,
+            MinVarianceGuard = 1e-6, // allow PCA instead of fallback
+            UseIsolationForest = false,
+            ModelPath = Path.Combine(dir, "model.zip"),
+            ThresholdPath = Path.Combine(dir, "thr.txt")
+        };
+
+        var ml1 = new MlAnomalyDetector(Options.Create(settings));
+
+        // Baseline with variance across multiple dimensions (RPS, UA entropy, method)
+        for (int i = 0; i < settings.BaselineSampleSize; i++)
+        {
+            var rps = (i % 2 == 0) ? 1 : 2;
+            var entropy = 3 + (i % 3); // 3,4,5
+            var method = (i % 2 == 0) ? "GET" : "POST";
+            ml1.Observe(new RequestFeature("c", rps, entropy, "/r", 200, false, false, method), out _);
+        }
+
+        // PCA model should have persisted (no fallback marker)
+        Assert.True(File.Exists(settings.ModelPath));
+        Assert.False(File.Exists(settings.ModelPath + ".fallback"));
+
+        // Normal sample stays below threshold
+        Assert.False(ml1.Observe(new RequestFeature("c", 1, 4, "/r", 200, false), out _));
+        // Obvious outlier is flagged
+        Assert.True(ml1.Observe(new RequestFeature("c", 50, 0, "/r", 200, false), out _));
+
+        // New instance loads PCA model + threshold immediately
+        var ml2 = new MlAnomalyDetector(Options.Create(settings));
+        Assert.True(ml2.Observe(new RequestFeature("c", 50, 0, "/r", 200, false), out _));
+        Assert.False(ml2.Observe(new RequestFeature("c", 1, 4, "/r", 200, false), out _));
+
+        try { Directory.Delete(dir, true); } catch { /* best effort */ }
+    }
+
+    /// <summary>
     /// Confirms baseline training ignores “dirty” samples (e.g., WAF/SchemaError) so they don’t contaminate the model;
     /// once clean samples arrive, anomalies are detected as expected.
     /// </summary>
