@@ -408,7 +408,7 @@ public class AnomalyDetectionTests
     /// Ensures periodic retrain re-calibrates threshold upward when “normal” traffic drifts higher.
     /// </summary>
     [Fact]
-    public void MlDetector_Retrain_RecalibratesThreshold()
+    public async Task MlDetector_Retrain_RecalibratesThreshold()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_retrain_" + Guid.NewGuid());
         Directory.CreateDirectory(dir);
@@ -444,7 +444,7 @@ public class AnomalyDetectionTests
 
             // Trigger retrain (invoke private method to avoid waiting for timer)
             var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+            await (Task)retrain.Invoke(ml, Array.Empty<object>())!;
 
             var thrAfter = (double)thrProp.GetValue(holder)!;
             Assert.True(thrAfter > thrBefore, "Expected threshold to increase after drift to higher RPS.");
@@ -456,7 +456,7 @@ public class AnomalyDetectionTests
     /// Ensures retraining prunes samples outside the training window before recalibration.
     /// </summary>
     [Fact]
-    public void MlDetector_Retrain_PrunesOldSamples()
+    public async Task MlDetector_Retrain_PrunesOldSamples()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aegis_ml_prune_" + Guid.NewGuid());
         Directory.CreateDirectory(dir);
@@ -499,7 +499,7 @@ public class AnomalyDetectionTests
 
             // Retrain and ensure old samples are pruned
             var retrain = typeof(MlAnomalyDetector).GetMethod("RetrainAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            ((Task)retrain.Invoke(ml, Array.Empty<object>())!).GetAwaiter().GetResult();
+            await (Task)retrain.Invoke(ml, Array.Empty<object>())!;
 
             var thrAfter = (double)thrProp.GetValue(holder)!;
             Assert.True(thrAfter > thrBefore, $"Expected threshold to increase, before={thrBefore}, after={thrAfter}");

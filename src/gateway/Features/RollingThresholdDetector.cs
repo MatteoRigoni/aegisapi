@@ -17,7 +17,7 @@ public class RollingThresholdDetector : IAnomalyDetector
 
     public bool Observe(RequestFeature feature, out string reason)
     {
-        var key = (feature.ClientId ?? "unknown", feature.RouteKey);
+        var key = (feature.ClientId ?? "unknown", feature.RouteKey ?? "unknown");
         var now = DateTime.UtcNow;
 
         var window = _cache.GetOrCreate(key, entry =>
