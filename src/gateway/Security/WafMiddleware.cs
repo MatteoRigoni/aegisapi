@@ -26,6 +26,7 @@ public sealed class WafMiddleware
         {
             _logger.LogWarning("Request blocked by WAF: {Reason}", reason);
             GatewayDiagnostics.WafBlocks.Add(1);
+            context.Items["WafHit"] = true;
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsync("Forbidden");
             return;

@@ -84,6 +84,9 @@ builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSecti
 builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
 builder.Services.AddSingleton<FeatureConsumer>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FeatureConsumer>());
+builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
+builder.Services.AddSingleton<AnomalyDetector>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetector>());
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(rb => rb.AddService("gateway"))

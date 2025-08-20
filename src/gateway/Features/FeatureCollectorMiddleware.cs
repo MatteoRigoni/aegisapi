@@ -25,8 +25,9 @@ public class FeatureCollectorMiddleware
         var path = context.Request.Path.ToString();
         var status = context.Response.StatusCode;
         var schemaError = context.Items.ContainsKey("SchemaError");
+        var wafHit = context.Items.ContainsKey("WafHit");
 
-        var feature = new RequestFeature(clientId, rpsWindow, uaEntropy, path, status, schemaError);
+        var feature = new RequestFeature(clientId, rpsWindow, uaEntropy, path, status, schemaError, wafHit);
         _queue.Enqueue(feature);
     }
 
