@@ -3,7 +3,7 @@
 AegisAPI separates feature extraction from anomaly detection so that different detectors can consume the same event stream.
 
 ## 1. Feature Extraction
-- `FeatureCollectorMiddleware` runs at the end of the ASP.NET pipeline.
+- `FeatureCollectorMiddleware` is registered at the start of the ASP.NET pipeline but invokes `_next` before collecting features, allowing it to observe the final response.
 - For every request it collects the client id, **HTTP method**, **normalized route** (first two segments), request-rate window, user-agent entropy, status code, schema-error flag, and WAF hit flag.
 - These values are packaged into a `RequestFeature` record and pushed to an in-memory queue.
 
