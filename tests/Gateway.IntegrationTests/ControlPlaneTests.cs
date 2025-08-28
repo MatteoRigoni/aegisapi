@@ -76,6 +76,29 @@ public class ControlPlaneTests
     }
 
     [Fact]
+    public async Task Default_RateLimit_Can_Be_Updated_But_Not_Deleted()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var client = factory.CreateClient();
+
+        var get = await client.GetAsync("/cp/ratelimits/default");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        var etag = get.Headers.ETag!.Tag;
+        var plan = await get.Content.ReadFromJsonAsync<RateLimitPlan>();
+
+        var updated = plan! with { Rpm = plan.Rpm + 10 };
+        var putReq = new HttpRequestMessage(HttpMethod.Put, "/cp/ratelimits/default") { Content = JsonContent.Create(updated) };
+        putReq.Headers.TryAddWithoutValidation("If-Match", etag);
+        var update = await client.SendAsync(putReq);
+        Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+
+        var delReq = new HttpRequestMessage(HttpMethod.Delete, "/cp/ratelimits/default");
+        delReq.Headers.TryAddWithoutValidation("If-Match", update.Headers.ETag!.Tag);
+        var del = await client.SendAsync(delReq);
+        Assert.Equal(HttpStatusCode.BadRequest, del.StatusCode);
+    }
+
+    [Fact]
     public async Task Waf_Etag_And_Audit_Work()
     {
         using var factory = new WebApplicationFactory<Program>();

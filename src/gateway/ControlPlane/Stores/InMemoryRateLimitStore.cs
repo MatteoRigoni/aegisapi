@@ -5,6 +5,7 @@ namespace Gateway.ControlPlane.Stores;
 
 public interface IRateLimitPlanStore
 {
+    const string DefaultPlan = "__default__";
     IEnumerable<RateLimitPlan> GetAll();
     (RateLimitPlan plan, string etag) Add(RateLimitPlan plan);
     bool TryUpdate(string plan, RateLimitPlan updated, string? etag, out string newEtag, out RateLimitPlan? before);

@@ -17,9 +17,21 @@ public sealed class RateLimitsController : ControllerBase
     [HttpGet]
     public IEnumerable<RateLimitPlan> Get() => _store.GetAll();
 
+    [HttpGet("default")]
+    public ActionResult<RateLimitPlan> GetDefault()
+    {
+        var res = _store.Get(IRateLimitPlanStore.DefaultPlan);
+        if (res is null)
+            return NotFound();
+        Response.Headers.ETag = res.Value.etag;
+        return res.Value.plan;
+    }
+
     [HttpPost]
     public ActionResult<RateLimitPlan> Create(RateLimitPlan plan)
     {
+        if (plan.Plan == IRateLimitPlanStore.DefaultPlan || plan.Plan == "default")
+            return BadRequest();
         var (created, etag) = _store.Add(plan);
         Response.Headers.ETag = etag;
         _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", created.Plan, "create", null, created);
@@ -29,6 +41,8 @@ public sealed class RateLimitsController : ControllerBase
     [HttpPut("{plan}")]
     public IActionResult Update(string plan, RateLimitPlan updated)
     {
+        if (plan == "default")
+            plan = IRateLimitPlanStore.DefaultPlan;
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
         if (!_store.TryUpdate(plan, updated with { Plan = plan }, etag!, out var newEtag, out var before))
@@ -41,6 +55,10 @@ public sealed class RateLimitsController : ControllerBase
     [HttpDelete("{plan}")]
     public IActionResult Delete(string plan)
     {
+        if (plan == "default")
+            plan = IRateLimitPlanStore.DefaultPlan;
+        if (plan == IRateLimitPlanStore.DefaultPlan)
+            return BadRequest();
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
         if (!_store.TryRemove(plan, etag!, out var before))
