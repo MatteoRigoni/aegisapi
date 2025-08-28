@@ -16,6 +16,7 @@ public class WafTests
                 {
                     builder.ConfigureAppConfiguration((_, cfg) =>
                     {
+                        cfg.Sources.Clear();
                         cfg.AddInMemoryCollection(extra);
                     });
                 }

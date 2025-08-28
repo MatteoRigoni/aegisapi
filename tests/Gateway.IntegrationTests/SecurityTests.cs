@@ -73,7 +73,7 @@ public class SecurityTests
 
             // ---- Auth (verranno sovrascritti nei singoli test) ----
             ["Auth:JwtKey"] = "dev-secret",
-            ["Auth:ApiKeyHash"] = Hash(DEV_API_KEY) // placeholder: ogni test può override
+            ["Auth:ApiKeyHash"] = Hash(DEV_API_KEY) // placeholder: ogni test puÃ² override
         };
 
         if (extra is not null)
@@ -88,6 +88,7 @@ public class SecurityTests
                 b.UseEnvironment("Testing");
                 b.ConfigureAppConfiguration((_, cfg) =>
                 {
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(baseConfig);
                 });
             });
@@ -248,7 +249,7 @@ public class SecurityTests
             });
 
         var client = factory.CreateClient();
-        // L’handler calcola l’hash: serve plaintext qui
+        // LÂ’handler calcola lÂ’hash: serve plaintext qui
         client.DefaultRequestHeaders.Add("X-API-Key", DEV_API_KEY);
 
         var resp = await client.GetAsync("/api/secure/ping");

@@ -25,6 +25,7 @@ public class FeatureTests
         {
             builder.ConfigureAppConfiguration((ctx, config) =>
             {
+                config.Sources.Clear();
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["AnomalyDetection:RpsThreshold"] = "0",

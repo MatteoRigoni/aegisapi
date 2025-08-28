@@ -34,6 +34,7 @@ public class RateLimitingTests
                 builder.UseEnvironment("Testing");
                 builder.ConfigureAppConfiguration((_, cfg) =>
                 {
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["RateLimiting:DefaultRpm"] = "2",
