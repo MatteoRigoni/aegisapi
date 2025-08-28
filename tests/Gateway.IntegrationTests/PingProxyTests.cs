@@ -37,6 +37,7 @@ public class PingProxyTests
                 b.ConfigureAppConfiguration((_, cfg) =>
                 {
                     // Override YARP configuration
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = backendUrl.EndsWith("/") ? backendUrl : backendUrl + "/",

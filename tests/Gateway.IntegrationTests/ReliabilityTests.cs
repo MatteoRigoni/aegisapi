@@ -60,6 +60,7 @@ public class ReliabilityTests
                 b.UseEnvironment("Testing");
                 b.ConfigureAppConfiguration((_, cfg) =>
                 {
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(baseConfig);
                 });
             });
