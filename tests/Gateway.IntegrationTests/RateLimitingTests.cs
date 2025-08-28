@@ -37,6 +37,7 @@ public class RateLimitingTests
                     cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(new Dictionary<string, string?>
                     {
+                        ["Auth:JwtKey"] = JWT_KEY,
                         ["RateLimiting:DefaultRpm"] = "2",
                         ["RateLimiting:Plans:gold"] = "4"
                     });
