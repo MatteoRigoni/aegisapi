@@ -1,4 +1,5 @@
 // tests/Gateway.IntegrationTests/SecurityTests.cs
+using Gateway.ControlPlane.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -300,5 +302,55 @@ public class SecurityTests
 
         var resp = await client.GetAsync("/api/secure/ping");
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ApiKey_Created_Used_Then_Deleted_Denies_Access()
+    {
+        const string newKey = "my-secret-key";
+
+        await using var backend = await StartBackendAsync(app =>
+        {
+            app.MapGet("/ping", () => Results.Text("pong", "text/plain"));
+        });
+
+        using var factory = CreateGatewayFactory(
+            backend.Url,
+            new Dictionary<string, string?>
+            {
+                ["Auth:ApiKeyHash"] = ""
+            });
+
+        var client = factory.CreateClient();
+
+        var route = new RouteConfig
+        {
+            Id = "secure",
+            Path = "/secure/{**catchAll}",
+            Destination = backend.Url,
+            AuthorizationPolicy = "ApiReadOrKey",
+            PathRemovePrefix = "/secure"
+        };
+
+        var createRoute = await client.PostAsJsonAsync("/cp/routes", route);
+        Assert.Equal(HttpStatusCode.Created, createRoute.StatusCode);
+
+        var record = new ApiKeyRecord { Id = "k1", Hash = Hash(newKey), Plan = "basic" };
+        var createKey = await client.PostAsJsonAsync("/cp/apikeys", record);
+        Assert.Equal(HttpStatusCode.Created, createKey.StatusCode);
+        var etag = createKey.Headers.ETag!.Tag;
+
+        client.DefaultRequestHeaders.Add("X-API-Key", newKey);
+        var ok = await client.GetAsync("/secure/ping");
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        Assert.Equal("pong", await ok.Content.ReadAsStringAsync());
+
+        var delReq = new HttpRequestMessage(HttpMethod.Delete, "/cp/apikeys/k1");
+        delReq.Headers.TryAddWithoutValidation("If-Match", etag);
+        var del = await client.SendAsync(delReq);
+        Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
+
+        var unauthorized = await client.GetAsync("/secure/ping");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
     }
 }
