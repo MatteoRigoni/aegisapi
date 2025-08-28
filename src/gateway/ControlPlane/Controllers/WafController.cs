@@ -27,15 +27,18 @@ public sealed class WafController : ControllerBase
     }
 
     [HttpPut("{rule}")]
-    public IActionResult Update(string rule, WafToggle toggle)
+    public IActionResult Update(string rule, WafToggle? toggle)
     {
+        if (toggle is null)
+            return BadRequest();
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
         var match = etag!.ToString().Trim('"');
-        if (!_store.TryUpdate(rule, toggle with { Rule = rule }, match, out var newEtag, out var before))
+        var updated = toggle with { Rule = rule };
+        if (!_store.TryUpdate(rule, updated, match, out var newEtag, out var before))
             return Conflict();
         Response.Headers.ETag = $"\"{newEtag}\"";
-        _audit.Log(User.Identity?.Name ?? "anon", "waf", rule, "update", before, toggle);
+        _audit.Log(User.Identity?.Name ?? "anon", "waf", rule, "update", before, updated);
         return NoContent();
     }
 
