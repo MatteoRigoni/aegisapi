@@ -18,6 +18,7 @@ using OpenTelemetry.Trace;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Yarp.ReverseProxy.Configuration;
+using Gateway.Settings;
 
 namespace Gateway;
 
@@ -36,7 +37,26 @@ public static class ServiceConfigurationExtensions
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Control Plane", Version = "v1" });
         });
 
-        services.AddSingleton<IRouteStore, InMemoryRouteStore>();
+        services.AddSingleton<IRouteStore>(sp => {
+            var routesSection = configuration.GetSection("ReverseProxy:Routes");
+            var clustersSection = configuration.GetSection("ReverseProxy:Clusters");
+            var routeList = new List<Gateway.ControlPlane.Models.RouteConfig>();
+            foreach (var routeChild in routesSection.GetChildren())
+            {
+                var routeId = routeChild.Key;
+                var path = routeChild.GetSection("Match:Path").Value ?? routeChild.GetSection("Match").GetValue<string>("Path") ?? "/";
+                var clusterId = routeChild["ClusterId"] ?? routeId;
+                var destination = clustersSection.GetSection(clusterId).GetSection("Destinations:d1:Address").Value
+                    ?? clustersSection.GetSection(clusterId).GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
+                    ?? "";
+                routeList.Add(new Gateway.ControlPlane.Models.RouteConfig {
+                    Id = routeId,
+                    Path = path,
+                    Destination = destination
+                });
+            }
+            return new InMemoryRouteStore(routeList);
+        });
         services.AddSingleton<IRateLimitPlanStore>(sp =>
         {
             var store = new InMemoryRateLimitStore();
@@ -144,22 +164,29 @@ public static class ServiceConfigurationExtensions
         services.AddSingleton<AnomalyDetectionService>();
         services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetectionService>());
 
+        services.AddOpenTelemetry()
+    .ConfigureResource(rb => rb.AddService("gateway"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics =>
+    {
+        metrics.AddAspNetCoreInstrumentation();
+        metrics.AddHttpClientInstrumentation();
+        metrics.AddRuntimeInstrumentation();
+        metrics.AddProcessInstrumentation();
+        metrics.AddMeter(GatewayDiagnostics.MeterName);
+        metrics.AddPrometheusExporter();
+        metrics.AddOtlpExporter();
+    });
+
         services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
         {
             http.BaseAddress = new Uri(configuration["Summarizer:BaseUrl"] ?? "http://localhost:5290");
             http.DefaultRequestHeaders.Add("X-Internal-Key", configuration["Summarizer:InternalKey"] ?? "dev");
         });
         services.AddHostedService<FeatureConsumerService>();
-
-
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.AddOpenTelemetry(options =>
-        {
-            options.IncludeScopes = true;
-            options.IncludeFormattedMessage = true;
-            options.ParseStateValues = true;
-            options.AddOtlpExporter();
-        });
 
         return services;
     }

@@ -21,6 +21,14 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGatewayServices(builder.Configuration, builder.Logging);
 
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
+    options.AddOtlpExporter();
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<FeatureCollectorMiddleware>();

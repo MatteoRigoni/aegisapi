@@ -20,6 +20,18 @@ public sealed class InMemoryRouteStore : IRouteStore
 
     public event Action? Changed;
 
+    public InMemoryRouteStore(IEnumerable<RouteConfig>? seed = null)
+    {
+        if (seed != null)
+        {
+            foreach (var route in seed)
+            {
+                var etag = Guid.NewGuid().ToString();
+                _routes[route.Id] = new Entry(route, etag);
+            }
+        }
+    }
+
     public IEnumerable<RouteConfig> GetAll() => _routes.Values.Select(e => e.Route);
 
     public (RouteConfig route, string etag)? Get(string id)
