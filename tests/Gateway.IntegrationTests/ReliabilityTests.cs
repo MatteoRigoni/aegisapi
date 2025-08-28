@@ -54,7 +54,7 @@ public class ReliabilityTests
                 baseConfig[kv.Key] = kv.Value;
         }
 
-        return new WebApplicationFactory<Program>()
+        return new GatewayFactory()
             .WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");

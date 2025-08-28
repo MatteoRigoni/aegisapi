@@ -10,7 +10,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task Routes_Etag_And_Audit_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         var route = new RouteConfig { Id = "r1", Path = "/r1", Destination = "http://e" };
         var create = await client.PostAsJsonAsync("/cp/routes", route);
@@ -47,7 +47,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task PathRemovePrefix_Route_Completes()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         var route = new RouteConfig
         {
@@ -66,7 +66,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task RateLimits_Etag_And_Audit_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         var plan = new RateLimitPlan { Plan = "gold", Rpm = 100 };
         var create = await client.PostAsJsonAsync("/cp/ratelimits", plan);
@@ -97,7 +97,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task Default_RateLimit_Can_Be_Updated_But_Not_Deleted()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
 
         var get = await client.GetAsync("/cp/ratelimits/default");
@@ -120,7 +120,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task Waf_Etag_And_Audit_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         var toggle = new WafToggle { Rule = "xss", Enabled = true };
         var create = await client.PostAsJsonAsync("/cp/waf", toggle);
@@ -151,7 +151,7 @@ public class ControlPlaneTests
     [Fact]
     public async Task ApiKeys_Etag_And_Audit_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         var key = new ApiKeyRecord { Id = "k1", Hash = "hash", Plan = "basic" };
         var create = await client.PostAsJsonAsync("/cp/apikeys", key);
