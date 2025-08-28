@@ -1,4 +1,5 @@
 using Gateway.Settings;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Extensions.Http;

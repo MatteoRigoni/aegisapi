@@ -2,6 +2,7 @@ using Microsoft.Extensions.Primitives;
 using Yarp.ReverseProxy.Configuration;
 using Gateway.ControlPlane.Models;
 using Gateway.ControlPlane.Stores;
+using Yarp.ReverseProxy.Forwarder;
 
 namespace Gateway.ControlPlane;
 
