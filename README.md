@@ -2,7 +2,7 @@
 
 
 
-**AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **auto-remediation PRs** to keep your APIs safe, fast, and compliant.
+**AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **OpenTelemetry observability** to keep your APIs safe, fast, and compliant.
 
 [![CI – Build & Test](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml)
@@ -21,6 +21,7 @@ curl http://localhost:5000/healthz                      # Returns 200 OK
 curl http://localhost:5000/api/ping                     # Public route
 curl -H "Authorization: Bearer <token>" http://localhost:5000/api/secure/ping  # Protected route (JWT)
 curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               # Protected route (API key)
+curl http://localhost:5000/metrics                      # Prometheus metrics
 ```
 
 ## Autenticazione
@@ -32,19 +33,17 @@ AegisAPI supporta due modalità di autenticazione:
 
 ### ✨ Features
 
-- 🔐 **Authentication & Authorization** via Azure AD (OIDC) + OPA/Rego policies  
+- 🔐 **Authentication & Authorization** with JWT or API keys and claim-based policies
 
-- 📊 **Rate Limiting & Quotas** with per-tenant and adaptive rules  
+- 📊 **Rate Limiting & Quotas** with per-tenant and adaptive rules
 
-- 📑 **Schema Validation** for REST & gRPC contracts  
+- 📑 **Schema Validation** for REST & gRPC contracts
 
 - 🛡 **WAF Protections** (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules
 
 - 📉 **Anomaly Detection** with per-client and per-route rolling thresholds, normalized routes, HTTP method & UA entropy features, and optional ML.NET models (see [docs/anomaly-detection](docs/anomaly-detection.md))
 
-- 🤖 **AI Security Summarizer** for anomaly detection + incident reports
-
-- 🔄 **Auto-Remediation PRs** with GitHub Actions (Cosign, Trivy, CodeQL, Checkov)  
+- 📈 **Observability** with OpenTelemetry traces, metrics, and logs
 
 
 
