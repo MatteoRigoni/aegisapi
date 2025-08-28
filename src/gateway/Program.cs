@@ -20,9 +20,7 @@ using System.Text;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Service and middleware configuration extracted to extension method
-builder.Services.AddGatewayServices(builder.Configuration);
+builder.Services.AddGatewayServices(builder.Configuration, builder.Logging);
 
 var app = builder.Build();
 

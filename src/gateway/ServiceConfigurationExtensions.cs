@@ -7,19 +7,19 @@ using Gateway.Settings;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace Gateway;
 
 public static class ServiceConfigurationExtensions
 {
-    public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration configuration, ILoggingBuilder loggingBuilder)
     {
         // Resilience configuration
         services.Configure<ResilienceSettings>(configuration.GetSection("Resilience"));
@@ -112,22 +112,6 @@ public static class ServiceConfigurationExtensions
         });
         services.AddHostedService<FeatureConsumerService>();
 
-        services.AddOpenTelemetry()
-            .ConfigureResource(rb => rb.AddService("gateway"))
-            .WithTracing(tracing => tracing
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddOtlpExporter())
-            .WithMetrics(metrics =>
-            {
-                metrics.AddAspNetCoreInstrumentation();
-                metrics.AddHttpClientInstrumentation();
-                metrics.AddRuntimeInstrumentation();
-                metrics.AddProcessInstrumentation();
-                metrics.AddMeter(GatewayDiagnostics.MeterName);
-                metrics.AddPrometheusExporter();
-                metrics.AddOtlpExporter();
-            });
 
         var builder = WebApplication.CreateBuilder();
         builder.Logging.AddOpenTelemetry(options =>

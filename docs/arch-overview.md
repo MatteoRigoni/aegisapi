@@ -1,6 +1,6 @@
 # AegisAPI — Architecture Overview
 
-> An ASP.NET Core (.NET 8) + YARP security gateway with OPA authorization, Azure AD (OIDC), API key support, AI anomaly summarization (Azure OpenAI), and end-to-end observability via OpenTelemetry. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
+> An ASP.NET Core (.NET 8) + YARP security gateway with JWT/API key authentication, claim-based authorization, rate limiting, schema validation, WAF protections, anomaly detection, and end-to-end observability via OpenTelemetry. Future work includes OPA/Rego policies, Azure AD integration, and AI-powered incident summaries. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
 
 ## 1) Request Flow (Data Plane)
 
@@ -9,21 +9,21 @@ flowchart LR
     Client["Client / Partner"] -->|"HTTPS (TLS1.2plus)"| E["Edge: Azure Front Door / AppGW WAF"]
     E --> G["Gateway (YARP, .NET 8)"]
     subgraph "YARP Pipeline (per-request)"
-      A1["AuthN: OIDC (Azure AD) or API Key"] --> A2["AuthZ: OPA (Rego) via sidecar"]
-      A2 --> A3["Rate Limit (token bucket, Redis)"]
+      A1["AuthN: JWT or API Key"] --> A2["AuthZ: Claim Policy"]
+      A2 --> A3["Rate Limit (token bucket, in-memory)"]
       A3 --> A4["Schema Validation (OpenAPI/JSON Schema)"]
-      A4 --> A5["WAF Checks (OWASP CRS, Coraza or Edge WAF)"]
+      A4 --> A5["WAF Checks (OWASP CRS or Edge WAF)"]
     end
     G -->|"mTLS / JWT"| Svc["Backend Services"]
 ```
 
 ### Notes
 
-- **Authentication**: Azure AD OIDC (JWT bearer) for users/services; API keys for partners/non-OIDC clients.  
-- **Authorization**: YARP middleware queries local OPA sidecar.  
-- **Rate Limiting**: Redis-backed token bucket.  
+- **Authentication**: JWT bearer tokens or API keys. OIDC integration is planned.
+- **Authorization**: simple claim-based policy. OPA sidecar is planned.
+- **Rate Limiting**: in-memory token bucket.
 
-## 2) Control Plane & OPA Decision Point
+## 2) Control Plane & OPA Decision Point (planned)
 
 ```mermaid
 flowchart TB
@@ -50,7 +50,7 @@ flowchart TB
 - Policies are versioned, tested, and published as bundles (OCI). Gateways pull bundles on start and periodically. 
 - Decision point stays in the gateway (low latency, fail-closed with cached bundles). 
 
-## 3) AI Summarizer Sidecar (Azure OpenAI)
+## 3) AI Summarizer Sidecar (planned)
 
 ```mermaid
 flowchart LR
@@ -63,8 +63,8 @@ flowchart LR
 
 ### Notes
 
-- Summarizes incident context (recent traces, top error spans, request exemplars, policy denials).
-- Can draft remediation PRs (e.g., tighten Rego policy, add rate-limit, update schema). Requires human approval.
+- Summarizes incident context (recent traces, top error spans, request exemplars, policy denials). *(planned)*
+- Can draft remediation PRs (e.g., tighten policy, add rate-limit, update schema). Requires human approval. *(planned)*
 
 ## 4) Telemetry (OpenTelemetry)
 
@@ -84,8 +84,8 @@ flowchart LR
 
 ### Security Controls (high level)
 
-- **Zero Trust**: mutual TLS to backends; audience/issuer checks on JWTs; least privilege Azure AD app registrations.
-- **Defense in Depth**: Edge WAF + schema validation + OPA + rate limits.
+- **Zero Trust**: mutual TLS to backends; audience/issuer checks on JWTs. Azure AD app registrations are planned.
+- **Defense in Depth**: Edge WAF + schema validation + rate limits. OPA policies are planned.
 - **Secrets**: Azure Key Vault; CSI Secret Store in AKS; short-lived credentials.
 - **Supply Chain**: Cosign-signed images & bundles, SBOM attestation; Trivy/Checkov/CodeQL in CI.
 - **Isolation**: Namespaces & NetworkPolicies; minimal pod capabilities; read-only filesystem.
