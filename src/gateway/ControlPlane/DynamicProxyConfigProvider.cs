@@ -15,12 +15,17 @@ public sealed class DynamicProxyConfigProvider : IProxyConfigProvider
     {
         _store = store;
         _config = BuildConfig();
-        _store.Changed += () => _config = BuildConfig(_config);
+        _store.Changed += () =>
+        {
+            var old = _config;
+            _config = BuildConfig();
+            old.TokenSource.Cancel();
+        };
     }
 
     public IProxyConfig GetConfig() => _config;
 
-    private InMemoryConfig BuildConfig(InMemoryConfig? oldConfig = null)
+    private InMemoryConfig BuildConfig()
     {
         var routes = new List<Yarp.ReverseProxy.Configuration.RouteConfig>();
         var clusters = new List<ClusterConfig>();
@@ -50,7 +55,6 @@ public sealed class DynamicProxyConfigProvider : IProxyConfigProvider
             });
         }
         var cts = new CancellationTokenSource();
-        oldConfig?.TokenSource.Cancel();
         return new InMemoryConfig(routes, clusters, new CancellationChangeToken(cts.Token), cts);
     }
 
