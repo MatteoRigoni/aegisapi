@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -32,16 +31,9 @@ public class RateLimitingTests
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, cfg) =>
-                {
-                    cfg.Sources.Clear();
-                    cfg.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Auth:JwtKey"] = JWT_KEY,
-                        ["RateLimiting:DefaultRpm"] = "2",
-                        ["RateLimiting:Plans:gold"] = "4"
-                    });
-                });
+                builder.UseSetting("Auth:JwtKey", JWT_KEY);
+                builder.UseSetting("RateLimiting:DefaultRpm", "2");
+                builder.UseSetting("RateLimiting:Plans:gold", "4");
             });
 
     [Fact]
