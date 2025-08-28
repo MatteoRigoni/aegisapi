@@ -33,13 +33,10 @@ public sealed class DynamicProxyConfigProvider : IProxyConfigProvider
                 Match = new RouteMatch { Path = r.Path },
                 AuthorizationPolicy = r.AuthorizationPolicy,
                 Transforms = string.IsNullOrEmpty(r.PathRemovePrefix)
-                    ? null
-                    : new[]
+                    ? Array.Empty<Dictionary<string, string>>()
+                    : new List<Dictionary<string, string>>
                     {
-                        new Dictionary<string, string>
-                        {
-                            ["PathRemovePrefix"] = r.PathRemovePrefix!
-                        }
+                        new() { ["PathRemovePrefix"] = r.PathRemovePrefix! }
                     }
             });
             clusters.Add(new ClusterConfig

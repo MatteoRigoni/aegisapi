@@ -45,6 +45,25 @@ public class ControlPlaneTests
     }
 
     [Fact]
+    public async Task PathRemovePrefix_Route_Completes()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var client = factory.CreateClient();
+        var route = new RouteConfig
+        {
+            Id = "rpp",
+            Path = "/rpp/{**catch-all}",
+            Destination = "http://e",
+            PathRemovePrefix = "/rpp"
+        };
+        var create = await client.PostAsJsonAsync("/cp/routes", route);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        var resp = await client.GetAsync("/rpp/test");
+        Assert.Equal(HttpStatusCode.BadGateway, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task RateLimits_Etag_And_Audit_Work()
     {
         using var factory = new WebApplicationFactory<Program>();
