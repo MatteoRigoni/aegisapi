@@ -21,7 +21,7 @@ public sealed class WafController : ControllerBase
     public ActionResult<WafToggle> Create(WafToggle toggle)
     {
         var (created, etag) = _store.Add(toggle);
-        Response.Headers.ETag = etag;
+        Response.Headers.ETag = $"\"{etag}\"";
         _audit.Log(User.Identity?.Name ?? "anon", "waf", created.Rule, "create", null, created);
         return CreatedAtAction(nameof(Get), new { id = created.Rule }, created);
     }
@@ -31,9 +31,10 @@ public sealed class WafController : ControllerBase
     {
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
-        if (!_store.TryUpdate(rule, toggle with { Rule = rule }, etag!, out var newEtag, out var before))
+        var match = etag!.ToString().Trim('"');
+        if (!_store.TryUpdate(rule, toggle with { Rule = rule }, match, out var newEtag, out var before))
             return Conflict();
-        Response.Headers.ETag = newEtag;
+        Response.Headers.ETag = $"\"{newEtag}\"";
         _audit.Log(User.Identity?.Name ?? "anon", "waf", rule, "update", before, toggle);
         return NoContent();
     }
@@ -43,7 +44,8 @@ public sealed class WafController : ControllerBase
     {
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
-        if (!_store.TryRemove(rule, etag!, out var before))
+        var match = etag!.ToString().Trim('"');
+        if (!_store.TryRemove(rule, match, out var before))
             return Conflict();
         _audit.Log(User.Identity?.Name ?? "anon", "waf", rule, "delete", before, null);
         return NoContent();
