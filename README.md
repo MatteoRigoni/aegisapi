@@ -55,7 +55,9 @@ AegisAPI supporta due modalità di autenticazione:
 
 - 📈 **Observability** with OpenTelemetry traces, metrics, and logs
 
+## Control Plane API
 
+Administrative CRUD endpoints live under `/cp/*` and include routes, rate limit plans, WAF toggles and API keys. Each write operation requires an `If-Match` header and returns the new `ETag`; mismatches yield `409 Conflict`. Every change is appended to an in-memory audit log retrievable via `GET /cp/audit`. The OpenAPI description is available from `/swagger/v1/swagger.json` and browsable at `/swagger`.
 
 ### 📈 Key Performance Indicators
 

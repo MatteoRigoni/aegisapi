@@ -1,8 +1,8 @@
 using Gateway.Security;
 using Gateway.Observability;
-using Gateway.Settings;
+using Gateway.ControlPlane.Stores;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
@@ -15,16 +15,19 @@ public sealed class ClientRateLimiterMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IMemoryCache _cache;
-    private readonly RateLimitingSettings _settings;
+    private readonly IRateLimitPlanStore _plans;
+    private readonly int _defaultRpm;
 
     public ClientRateLimiterMiddleware(
         RequestDelegate next,
         IMemoryCache cache,
-        IOptions<RateLimitingSettings> options)
+        IRateLimitPlanStore plans,
+        IConfiguration config)
     {
         _next = next;
         _cache = cache;
-        _settings = options.Value;
+        _plans = plans;
+        _defaultRpm = config.GetValue<int>("RateLimiting:DefaultRpm", 100);
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -37,7 +40,7 @@ public sealed class ClientRateLimiterMiddleware
         }
 
         var plan = context.User.FindFirst("plan")?.Value;
-        var limit = _settings.GetLimit(plan);
+        var limit = _plans.Get(plan ?? string.Empty)?.plan.Rpm ?? _defaultRpm;
         context.Items["ClientId"] = clientId;
         context.Items["RpsWindow"] = limit / 60d;
         var now = DateTime.UtcNow;

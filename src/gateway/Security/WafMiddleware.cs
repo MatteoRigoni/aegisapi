@@ -1,21 +1,21 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using Gateway.Settings;
-using Microsoft.Extensions.Options;
+using Gateway.ControlPlane.Stores;
 using Gateway.Observability;
+using System.Collections.Generic;
 
 namespace Gateway.Security;
 
 public sealed class WafMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly WafSettings _settings;
+    private readonly IWafToggleStore _store;
     private readonly ILogger<WafMiddleware> _logger;
 
-    public WafMiddleware(RequestDelegate next, IOptions<WafSettings> options, ILogger<WafMiddleware> logger)
+    public WafMiddleware(RequestDelegate next, IWafToggleStore store, ILogger<WafMiddleware> logger)
     {
         _next = next;
-        _settings = options.Value;
+        _store = store;
         _logger = logger;
     }
 
@@ -58,21 +58,25 @@ public sealed class WafMiddleware
             toInspect.Add(body);
         }
 
+        var toggles = _store.GetAll().ToDictionary(t => t.Rule, t => t.Enabled, StringComparer.OrdinalIgnoreCase);
         foreach (var s in toInspect)
         {
-            if (_settings.PathTraversal && s.Contains("../", StringComparison.Ordinal))
+            if (IsEnabled(toggles, "PathTraversal") && s.Contains("../", StringComparison.Ordinal))
                 return "PATH_TRAVERSAL";
 
-            if (_settings.SqlInjection && Regex.IsMatch(s, @"(?i)(union.*select|select.*from|insert\s+into|drop\s+table|--|\bOR\b\s+\d=\d)"))
+            if (IsEnabled(toggles, "SqlInjection") && Regex.IsMatch(s, @"(?i)(union.*select|select.*from|insert\s+into|drop\s+table|--|\bOR\b\s+\d=\d)"))
                 return "SQLI";
 
-            if (_settings.Xss && Regex.IsMatch(s, @"(?i)<script|onerror=|javascript:"))
+            if (IsEnabled(toggles, "Xss") && Regex.IsMatch(s, @"(?i)<script|onerror=|javascript:"))
                 return "XSS";
 
-            if (_settings.Ssrf && Regex.IsMatch(s, @"(?i)https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})"))
+            if (IsEnabled(toggles, "Ssrf") && Regex.IsMatch(s, @"(?i)https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})"))
                 return "SSRF";
         }
 
         return null;
     }
+
+    private static bool IsEnabled(Dictionary<string, bool> toggles, string rule)
+        => !toggles.TryGetValue(rule, out var enabled) || enabled;
 }

@@ -1,31 +1,24 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
+using Gateway.ControlPlane.Stores;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Linq;
 
 namespace Gateway.Security;
-
-public sealed class ApiKeyValidationOptions
-{
-    public string Hash { get; set; } = "";
-}
 
 public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public const string HeaderName = "X-API-Key";
-    private readonly IOptionsMonitor<ApiKeyValidationOptions> _options;
+    private readonly IApiKeyStore _store;
 
     public ApiKeyAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IOptionsMonitor<ApiKeyValidationOptions> validationOptions)
-        : base(options, logger, encoder)
-    {
-        _options = validationOptions;
-    }
+        IApiKeyStore store)
+        : base(options, logger, encoder) => _store = store;
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -33,24 +26,23 @@ public sealed class ApiKeyAuthenticationHandler : AuthenticationHandler<Authenti
             return Task.FromResult(AuthenticateResult.NoResult());
 
         var provided = values.FirstOrDefault();
-        var expectedHash = _options.CurrentValue.Hash;
-
-        if (string.IsNullOrEmpty(provided) || string.IsNullOrEmpty(expectedHash))
+        if (string.IsNullOrEmpty(provided))
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
-        var providedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(provided)));
-        var providedBytes = Convert.FromHexString(providedHash);
-        var expectedBytes = Convert.FromHexString(expectedHash);
-
-        if (CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes))
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(provided)));
+        var record = _store.GetAll().FirstOrDefault(k =>
         {
-            var claims = new[] { new Claim("ApiKey", "Valid") };
-            var identity = new ClaimsIdentity(claims, Scheme.Name);
-            var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, Scheme.Name);
-            return Task.FromResult(AuthenticateResult.Success(ticket));
-        }
+            var expectedBytes = Convert.FromHexString(k.Hash);
+            var providedBytes = Convert.FromHexString(hash);
+            return CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
+        });
+        if (record is null)
+            return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
 
-        return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
+        var claims = new[] { new Claim("ApiKey", record.Id), new Claim("plan", record.Plan) };
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

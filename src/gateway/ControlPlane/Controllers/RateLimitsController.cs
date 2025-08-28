@@ -1,0 +1,51 @@
+using Gateway.ControlPlane.Models;
+using Gateway.ControlPlane.Stores;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Gateway.ControlPlane.Controllers;
+
+[ApiController]
+[Route("cp/ratelimits")]
+public sealed class RateLimitsController : ControllerBase
+{
+    private readonly IRateLimitPlanStore _store;
+    private readonly IAuditLog _audit;
+
+    public RateLimitsController(IRateLimitPlanStore store, IAuditLog audit)
+        => (_store, _audit) = (store, audit);
+
+    [HttpGet]
+    public IEnumerable<RateLimitPlan> Get() => _store.GetAll();
+
+    [HttpPost]
+    public ActionResult<RateLimitPlan> Create(RateLimitPlan plan)
+    {
+        var (created, etag) = _store.Add(plan);
+        Response.Headers.ETag = etag;
+        _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", created.Plan, "create", null, created);
+        return CreatedAtAction(nameof(Get), new { id = created.Plan }, created);
+    }
+
+    [HttpPut("{plan}")]
+    public IActionResult Update(string plan, RateLimitPlan updated)
+    {
+        if (!Request.Headers.TryGetValue("If-Match", out var etag))
+            return BadRequest();
+        if (!_store.TryUpdate(plan, updated with { Plan = plan }, etag!, out var newEtag, out var before))
+            return Conflict();
+        Response.Headers.ETag = newEtag;
+        _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", plan, "update", before, updated);
+        return NoContent();
+    }
+
+    [HttpDelete("{plan}")]
+    public IActionResult Delete(string plan)
+    {
+        if (!Request.Headers.TryGetValue("If-Match", out var etag))
+            return BadRequest();
+        if (!_store.TryRemove(plan, etag!, out var before))
+            return Conflict();
+        _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", plan, "delete", before, null);
+        return NoContent();
+    }
+}

@@ -4,7 +4,6 @@ using Gateway.Observability;
 using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
-using Gateway.Settings;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +42,9 @@ app.UseMiddleware<ClientRateLimiterMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<JsonValidationMiddleware>();
 
+app.UseSwagger();
+app.UseSwaggerUI();
+
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
 app.MapPost("/api/echo", async (HttpContext ctx) =>
@@ -61,6 +63,7 @@ app.MapPost("/api/echo", async (HttpContext ctx) =>
 });
 app.MapReverseProxy();
 app.MapPrometheusScrapingEndpoint();
+app.MapControllers();
 
 app.Run();
 

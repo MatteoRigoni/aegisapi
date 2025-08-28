@@ -3,8 +3,11 @@ using Gateway.Observability;
 using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
-using Gateway.Settings;
 using Gateway.Validation;
+using Gateway.ControlPlane.Stores;
+using Gateway.ControlPlane;
+using Gateway.ControlPlane.Models;
+using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +17,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Yarp.ReverseProxy.Configuration;
 
 namespace Gateway;
 
@@ -23,9 +27,49 @@ public static class ServiceConfigurationExtensions
     {
         // Resilience configuration
         services.Configure<ResilienceSettings>(configuration.GetSection("Resilience"));
-        services.Configure<RateLimitingSettings>(configuration.GetSection("RateLimiting"));
-        services.Configure<WafSettings>(configuration.GetSection("Waf"));
         services.AddMemoryCache();
+
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Control Plane", Version = "v1" });
+        });
+
+        services.AddSingleton<IRouteStore, InMemoryRouteStore>();
+        services.AddSingleton<IRateLimitPlanStore>(sp =>
+        {
+            var store = new InMemoryRateLimitStore();
+            var plans = configuration.GetSection("RateLimiting:Plans").GetChildren();
+            foreach (var p in plans)
+            {
+                if (int.TryParse(p.Value, out var rpm))
+                    store.Add(new RateLimitPlan { Plan = p.Key, Rpm = rpm });
+            }
+            return store;
+        });
+        services.AddSingleton<IWafToggleStore>(sp =>
+        {
+            var store = new InMemoryWafStore();
+            var wafSection = configuration.GetSection("Waf");
+            foreach (var child in wafSection.GetChildren())
+            {
+                if (bool.TryParse(child.Value, out var enabled))
+                    store.Add(new WafToggle { Rule = child.Key, Enabled = enabled });
+            }
+            return store;
+        });
+        services.AddSingleton<IApiKeyStore>(sp =>
+        {
+            var store = new InMemoryApiKeyStore();
+            var hash = configuration["Auth:ApiKeyHash"];
+            if (!string.IsNullOrEmpty(hash))
+                store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
+            return store;
+        });
+        services.AddSingleton<IAuditLog, InMemoryAuditLog>();
+        services.AddSingleton<DynamicProxyConfigProvider>();
+        services.AddSingleton<IProxyConfigProvider>(sp => sp.GetRequiredService<DynamicProxyConfigProvider>());
 
         const string ApiKeyScheme = "ApiKey";
         const string BearerOrApiKeyScheme = "BearerOrApiKey";
@@ -71,18 +115,13 @@ public static class ServiceConfigurationExtensions
             {
                 policy.RequireAssertion(ctx =>
                     ctx.User.HasClaim("scope", "api.read") ||
-                    ctx.User.HasClaim("ApiKey", "Valid"));
+                    ctx.User.HasClaim(c => c.Type == "ApiKey"));
             });
         });
 
-        // ApiKey configuration
-        services
-            .AddOptions<ApiKeyValidationOptions>()
-            .Configure<IConfiguration>((opt, cfg) => opt.Hash = cfg["Auth:ApiKeyHash"] ?? "");
-
         // YARP resilience
         services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
-        services.AddReverseProxy().LoadFromConfig(configuration.GetSection("ReverseProxy"));
+        services.AddReverseProxy();
 
         services.Configure<AnomalyDetectionSettings>(configuration.GetSection("AnomalyDetection"));
         services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
