@@ -92,7 +92,7 @@ public class RateLimitingTests
         Assert.Equal(HttpStatusCode.TooManyRequests, statuses.Last());
     }
 
-    [Fact]
+   [Fact]
     public async Task Updating_Plan_Takes_Effect_Without_Restart()
     {
         using var factory = CreateFactory();
@@ -114,7 +114,9 @@ public class RateLimitingTests
         {
             Content = JsonContent.Create(plan)
         };
+        // If your server expects a quoted ETag, `etag` from ETag.Tag already includes quotes.
         putReq.Headers.TryAddWithoutValidation("If-Match", etag);
+
         var update = await client.SendAsync(putReq);
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
@@ -128,5 +130,20 @@ public class RateLimitingTests
         Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
         Assert.Equal(HttpStatusCode.OK, r3.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, r4.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unauthenticated_Client_Is_Rate_Limited_By_IP()
+    {
+        using var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        var r1 = await client.GetAsync("/");
+        var r2 = await client.GetAsync("/");
+        var r3 = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, r3.StatusCode);
     }
 }

@@ -15,8 +15,7 @@ public class JsonValidationMiddleware
         _schemaRoot = Path.Combine(env.ContentRootPath, "Schemas");
     }
 
-    // Update the usage in Invoke method
-    public async Task Invoke(HttpContext context)
+    public async Task InvokeAsync(HttpContext context)
     {
         if (!context.Request.Path.StartsWithSegments("/api", out var remainder))
         {

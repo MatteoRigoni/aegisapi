@@ -28,8 +28,8 @@ public sealed class ClientRateLimiterMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var clientId = GetClientId(context);
-        if (clientId is null)
+        var clientId = GetClientId(context) ?? context.Connection.RemoteIpAddress?.ToString();
+        if (string.IsNullOrEmpty(clientId))
         {
             await _next(context);
             return;

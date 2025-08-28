@@ -1,6 +1,6 @@
 # AegisAPI — Architecture Overview
 
-> An ASP.NET Core (.NET 8) + YARP security gateway with JWT/API key authentication, claim-based authorization, rate limiting, schema validation, WAF protections, anomaly detection, **AI incident summarization**, and end-to-end observability via OpenTelemetry. Future work includes OPA/Rego policies and Azure AD integration. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
+> An ASP.NET Core (.NET 8) + YARP security gateway with feature collection, WAF protections, JWT/API key authentication, rate limiting, claim-based authorization, JSON validation, anomaly detection, **AI incident summarization**, and end-to-end observability via OpenTelemetry. Future work includes OPA/Rego policies and Azure AD integration. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
 
 ## 1) Request Flow (Data Plane)
 
@@ -9,19 +9,23 @@ flowchart LR
     Client["Client / Partner"] -->|"HTTPS (TLS1.2plus)"| E["Edge: Azure Front Door / AppGW WAF"]
     E --> G["Gateway (YARP, .NET 8)"]
     subgraph "YARP Pipeline (per-request)"
-      A1["AuthN: JWT or API Key"] --> A2["AuthZ: Claim Policy"]
-      A2 --> A3["Rate Limit (token bucket, in-memory)"]
-      A3 --> A4["Schema Validation (OpenAPI/JSON Schema)"]
-      A4 --> A5["WAF Checks (regex for SQLi/XSS/SSRF/Path Traversal)"]
+      FC["Feature Collector"] --> W["WAF Checks (regex for SQLi/XSS/SSRF/Path Traversal)"]
+      W --> A1["AuthN: JWT or API Key"]
+      A1 --> RL["Rate Limit (token bucket, in-memory)"]
+      RL --> A2["AuthZ: Claim Policy"]
+      A2 --> JV["JSON Validation (OpenAPI/JSON Schema)"]
     end
     G -->|"mTLS / JWT"| Svc["Backend Services"]
 ```
 
 ### Notes
 
+- **Feature Collection**: records request features for telemetry before processing.
+- **WAF**: regex-based checks for SQLi, XSS, SSRF, and path traversal.
 - **Authentication**: JWT bearer tokens or API keys. OIDC integration is planned.
-- **Authorization**: simple claim-based policy. OPA sidecar is planned.
 - **Rate Limiting**: in-memory token bucket.
+- **Authorization**: simple claim-based policy. OPA sidecar is planned.
+- **JSON Validation**: OpenAPI/JSON Schema request validation.
 - **Resilience**: outbound calls use Polly for retries, timeouts, and circuit breakers.
 
 ## 2) Control Plane & OPA Decision Point (planned)
