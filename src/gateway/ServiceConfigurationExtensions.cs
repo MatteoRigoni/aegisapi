@@ -47,13 +47,27 @@ public static class ServiceConfigurationExtensions
                 var routeId = routeChild.Key;
                 var path = routeChild.GetSection("Match:Path").Value ?? routeChild.GetSection("Match").GetValue<string>("Path") ?? "/";
                 var clusterId = routeChild["ClusterId"] ?? routeId;
-                var destination = clustersSection.GetSection(clusterId).GetSection("Destinations:d1:Address").Value
-                    ?? clustersSection.GetSection(clusterId).GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
+                var clusterSection = clustersSection.GetSection(clusterId);
+                var destination = clusterSection.GetSection("Destinations:d1:Address").Value
+                    ?? clusterSection.GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
                     ?? "";
+                TimeSpan? activityTimeout = null;
+                var timeoutStr = clusterSection.GetSection("HttpRequest")["ActivityTimeout"];
+                if (TimeSpan.TryParse(timeoutStr, out var parsed))
+                    activityTimeout = parsed;
+                string? authPolicy = routeChild["AuthorizationPolicy"];
+                string? pathRemovePrefix = null;
+                foreach (var t in routeChild.GetSection("Transforms").GetChildren())
+                {
+                    pathRemovePrefix ??= t["PathRemovePrefix"];
+                }
                 routeList.Add(new Gateway.ControlPlane.Models.RouteConfig {
                     Id = routeId,
                     Path = path,
-                    Destination = destination
+                    Destination = destination,
+                    AuthorizationPolicy = authPolicy,
+                    PathRemovePrefix = pathRemovePrefix,
+                    ActivityTimeout = activityTimeout
                 });
             }
             return new InMemoryRouteStore(routeList);
