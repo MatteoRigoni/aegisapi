@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Hosting;
+using Gateway.ControlPlane.Models;
 
 namespace Gateway.IntegrationTests;
 
@@ -88,5 +90,43 @@ public class RateLimitingTests
 
         Assert.True(statuses.Take(4).All(s => s == HttpStatusCode.OK));
         Assert.Equal(HttpStatusCode.TooManyRequests, statuses.Last());
+    }
+
+    [Fact]
+    public async Task Updating_Plan_Takes_Effect_Without_Restart()
+    {
+        using var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        var plan = new RateLimitPlan { Plan = "silver", Rpm = 1 };
+        var create = await client.PostAsJsonAsync("/cp/ratelimits", plan);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var etag = create.Headers.ETag!.Tag;
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken("userA", "silver"));
+        var first = await client.GetAsync("/");
+        var second = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+
+        plan = plan with { Rpm = 3 };
+        var putReq = new HttpRequestMessage(HttpMethod.Put, "/cp/ratelimits/silver")
+        {
+            Content = JsonContent.Create(plan)
+        };
+        putReq.Headers.TryAddWithoutValidation("If-Match", etag);
+        var update = await client.SendAsync(putReq);
+        Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken("userB", "silver"));
+        var r1 = await client.GetAsync("/");
+        var r2 = await client.GetAsync("/");
+        var r3 = await client.GetAsync("/");
+        var r4 = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, r3.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, r4.StatusCode);
     }
 }
