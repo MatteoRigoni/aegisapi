@@ -7,6 +7,7 @@ using Gateway.Security;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
@@ -71,8 +72,6 @@ app.MapPost("/api/echo", async (HttpContext ctx) =>
 });
 app.MapReverseProxy();
 var meterProvider = app.Services.GetService<MeterProvider>();
-if (meterProvider != null)
-    app.MapPrometheusScrapingEndpoint(meterProvider);
 app.MapControllers();
 
 app.Run();

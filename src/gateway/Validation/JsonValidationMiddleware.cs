@@ -15,6 +15,7 @@ public class JsonValidationMiddleware
         _schemaRoot = Path.Combine(env.ContentRootPath, "Schemas");
     }
 
+    // Update the usage in Invoke method
     public async Task Invoke(HttpContext context)
     {
         if (!context.Request.Path.StartsWithSegments("/api", out var remainder))
@@ -30,10 +31,12 @@ public class JsonValidationMiddleware
                 ? Path.Combine(_schemaRoot, remainder.Value.Trim('/') + ".json")
                 : null;
 
-            if (!await TryValidateRequestAsync(context, schemaFile, out schema))
+            var validationResult = await TryValidateRequestAsync(context, schemaFile);
+            if (!validationResult.isValid)
             {
                 return;
             }
+            schema = validationResult.schema;
         }
 
         if (schema != null)
@@ -73,9 +76,9 @@ public class JsonValidationMiddleware
         await _next(context);
     }
 
-    private async Task<bool> TryValidateRequestAsync(HttpContext context, string? schemaFile, out JsonSchema? schema)
+    private async Task<(bool isValid, JsonSchema? schema)> TryValidateRequestAsync(HttpContext context, string? schemaFile)
     {
-        schema = null;
+        JsonSchema? schema = null;
         if (schemaFile != null && File.Exists(schemaFile))
         {
             schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
@@ -94,9 +97,9 @@ public class JsonValidationMiddleware
                     .Where(d => d.Errors != null && d.Errors.Count > 0)
                     .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
                 await context.Response.WriteAsJsonAsync(new { errors });
-                return false;
+                return (false, schema);
             }
         }
-        return true;
+        return (true, schema);
     }
 }
