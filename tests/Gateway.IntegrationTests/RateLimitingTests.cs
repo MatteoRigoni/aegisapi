@@ -32,6 +32,7 @@ public class RateLimitingTests
             {
                 builder.UseEnvironment("Testing");
                 builder.UseSetting("Auth:JwtKey", JWT_KEY);
+                builder.UseSetting("Summarizer:BaseUrl", "http://localhost:5290");
                 builder.UseSetting("RateLimiting:DefaultRpm", "2");
                 builder.UseSetting("RateLimiting:Plans:gold", "4");
             });
