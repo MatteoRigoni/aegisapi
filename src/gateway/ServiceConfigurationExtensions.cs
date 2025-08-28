@@ -201,7 +201,10 @@ public static class ServiceConfigurationExtensions
 
         services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
         {
-            http.BaseAddress = new Uri(configuration["Summarizer:BaseUrl"] ?? "http://localhost:5290");
+            var baseUrl = configuration["Summarizer:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "http://localhost:5290";
+            http.BaseAddress = new Uri(baseUrl);
             http.DefaultRequestHeaders.Add("X-Internal-Key", configuration["Summarizer:InternalKey"] ?? "dev");
         });
         services.AddHostedService<FeatureConsumerService>();
