@@ -71,8 +71,8 @@ app.MapPost("/api/echo", async (HttpContext ctx) =>
 });
 app.MapReverseProxy();
 var meterProvider = app.Services.GetService<MeterProvider>();
-if (meterProvider is not null)
-    app.MapPrometheusScrapingEndpoint();
+if (meterProvider != null)
+    app.MapPrometheusScrapingEndpoint(meterProvider);
 app.MapControllers();
 
 app.Run();
