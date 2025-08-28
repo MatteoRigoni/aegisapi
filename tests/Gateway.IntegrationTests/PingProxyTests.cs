@@ -43,7 +43,7 @@ public class PingProxyTests
                         ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = backendUrl.EndsWith("/") ? backendUrl : backendUrl + "/",
                         // Explicit configuration
                         ["ReverseProxy:Routes:api:ClusterId"] = "backend",
-                        ["ReverseProxy:Routes:api:Match:Path"] = "/api/{**catch-all}",
+                        ["ReverseProxy:Routes:api:Match:Path"] = "/api/{**catchAll}",
                         ["ReverseProxy:Routes:api:Transforms:0:PathRemovePrefix"] = "/api"
                     });
                 });

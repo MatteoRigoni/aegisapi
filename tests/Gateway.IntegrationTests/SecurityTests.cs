@@ -44,7 +44,7 @@ public class SecurityTests
             // /api/secure/* -> richiede auth (AuthorizationPolicy = ApiReadOrKey)
             ["ReverseProxy:Routes:secure:Order"] = "0",
             ["ReverseProxy:Routes:secure:ClusterId"] = "backend",
-            ["ReverseProxy:Routes:secure:Match:Path"] = "/api/secure/{**catch-all}",
+            ["ReverseProxy:Routes:secure:Match:Path"] = "/api/secure/{**catchAll}",
             ["ReverseProxy:Routes:secure:AuthorizationPolicy"] = "ApiReadOrKey",
             ["ReverseProxy:Routes:secure:Transforms:0:PathRemovePrefix"] = "/api/secure",
             ["ReverseProxy:Routes:secure:Transforms:1:RequestHeadersCopy"] = "true",
@@ -53,7 +53,7 @@ public class SecurityTests
             // /api/* -> pubblico
             ["ReverseProxy:Routes:public:Order"] = "1",
             ["ReverseProxy:Routes:public:ClusterId"] = "backend",
-            ["ReverseProxy:Routes:public:Match:Path"] = "/api/{**catch-all}",
+            ["ReverseProxy:Routes:public:Match:Path"] = "/api/{**catchAll}",
             ["ReverseProxy:Routes:public:Transforms:0:PathRemovePrefix"] = "/api",
             ["ReverseProxy:Routes:public:Transforms:1:RequestHeadersCopy"] = "true",
             ["ReverseProxy:Routes:public:Transforms:2:ResponseHeadersCopy"] = "true",

@@ -52,7 +52,7 @@ public class ControlPlaneTests
         var route = new RouteConfig
         {
             Id = "rpp",
-            Path = "/rpp/{**catch-all}",
+            Path = "/rpp/{**catchAll}",
             Destination = "http://e",
             PathRemovePrefix = "/rpp"
         };
@@ -61,6 +61,26 @@ public class ControlPlaneTests
 
         var resp = await client.GetAsync("/rpp/test");
         Assert.Equal(HttpStatusCode.BadGateway, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Route_With_Invalid_Path_Returns_BadRequest()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var client = factory.CreateClient();
+        var route = new RouteConfig { Id = "bad", Path = "/{**", Destination = "http://e" };
+        var create = await client.PostAsJsonAsync("/cp/routes", route);
+        Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
+    }
+
+    [Fact]
+    public async Task Route_With_Valid_Path_Succeeds()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var client = factory.CreateClient();
+        var route = new RouteConfig { Id = "good", Path = "/good/{**catchAll}", Destination = "http://e" };
+        var create = await client.PostAsJsonAsync("/cp/routes", route);
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
     }
 
     [Fact]
