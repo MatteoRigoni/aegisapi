@@ -33,12 +33,17 @@ A `PeriodicTimer` retrains the model every `RetrainIntervalMinutes` on recent bu
 ### Hybrid
 - `HybridDetector` applies rolling thresholds first and only invokes the ML detector if the rules consider the event nominal.
 
-## 4. Configuration
+## 4. Summarizer Integration
+When a detector flags an anomaly, `FeatureConsumerService` builds an `IncidentBundle` and calls the Summarizer service (`POST /ai/summarize`).
+The bundle is redacted to remove tokens, API keys, emails, and raw IPs before being sent.
+The Summarizer returns a `SummaryResponse` with a human-readable summary, probable cause, optional `PolicyPatch`, confidence score, and suggested next steps. The gateway logs this response and can surface patches for review.
+
+## 5. Configuration
 Key settings are provided via `AnomalyDetectionSettings`:
 - `Mode` – selects Rules, Ml, or Hybrid detection.
 - `RpsWindowSeconds`, `ErrorWindowSeconds`, `RpsThreshold`, `FourXxThreshold`, `FiveXxThreshold`, `WafThreshold`, `UaEntropyThreshold`.
 - `FeatureQueueCapacity` for the bounded queue.
 - `BaselineSampleSize`, `TrainingWindowMinutes`, `RetrainIntervalMinutes`, `ScoreQuantile`, `MinSamplesGuard`, `MinVarianceGuard` for the ML detector.
 
-## 5. Tests
+## 6. Tests
 `tests/Gateway.IntegrationTests/AnomalyDetectionTests.cs` feeds a labeled sequence of request features to the detectors and asserts the expected anomalies for rule spikes, ML warm-up, and hybrid precedence.

@@ -11,7 +11,11 @@
 ## Quick Start
 
 ```bash
-# Run the gateway
+# Run the Summarizer service (dev)
+cd src/ai/Summarizer
+dotnet run --urls http://localhost:5290
+
+# Run the gateway (in another terminal)
 cd src/gateway
 dotnet run
 
@@ -22,6 +26,8 @@ curl http://localhost:5000/api/ping                     # Public route
 curl -H "Authorization: Bearer <token>" http://localhost:5000/api/secure/ping  # Protected route (JWT)
 curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               # Protected route (API key)
 ```
+
+The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that returns a sample `IncidentBundle` for quick experiments.
 
 ## Autenticazione
 

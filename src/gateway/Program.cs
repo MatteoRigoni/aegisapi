@@ -1,3 +1,4 @@
+using Gateway;
 using Gateway.Features;
 using Gateway.Observability;
 using Gateway.RateLimiting;
@@ -7,6 +8,7 @@ using Gateway.Settings;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
@@ -15,118 +17,12 @@ using OpenTelemetry.Trace;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text;
-using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Resilience configuration
-builder.Services.Configure<ResilienceSettings>(builder.Configuration.GetSection("Resilience"));
-builder.Services.Configure<RateLimitingSettings>(builder.Configuration.GetSection("RateLimiting"));
-builder.Services.Configure<WafSettings>(builder.Configuration.GetSection("Waf"));
-builder.Services.AddMemoryCache();
-
-const string ApiKeyScheme = "ApiKey";
-const string BearerOrApiKeyScheme = "BearerOrApiKey";
-
-// Authentication
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = BearerOrApiKeyScheme;
-    options.DefaultChallengeScheme = BearerOrApiKeyScheme;
-})
-.AddPolicyScheme(BearerOrApiKeyScheme, JwtBearerDefaults.AuthenticationScheme, options =>
-{
-    options.ForwardDefaultSelector = ctx =>
-    {
-        if (ctx.Request.Headers.ContainsKey("Authorization"))
-            return JwtBearerDefaults.AuthenticationScheme;
-        if (ctx.Request.Headers.ContainsKey("X-API-Key"))
-            return ApiKeyScheme;
-        return JwtBearerDefaults.AuthenticationScheme;
-    };
-})
-.AddJwtBearer(options =>
-{
-    var jwtKey = builder.Configuration["Auth:JwtKey"] ?? "dev-secret";
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-})
-.AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyScheme, options =>
-{
-    options.ClaimsIssuer = ApiKeyScheme;
-});
-
-// Authorization
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("ApiReadOrKey", policy =>
-    {
-        policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim("scope", "api.read") ||
-            ctx.User.HasClaim("ApiKey", "Valid"));
-    });
-});
-
-// ApiKey configuration
-builder.Services
-    .AddOptions<ApiKeyValidationOptions>()
-    .Configure<IConfiguration>((opt, cfg) => opt.Hash = cfg["Auth:ApiKeyHash"] ?? "");
-
-// YARP resilience
-builder.Services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
-builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
-
-builder.Services.Configure<AnomalyDetectionSettings>(builder.Configuration.GetSection("AnomalyDetection"));
-builder.Services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
-builder.Services.AddSingleton<IFeatureSource>(sp => sp.GetRequiredService<IRequestFeatureQueue>());
-builder.Services.AddSingleton<RollingThresholdDetector>();
-builder.Services.AddSingleton<MlAnomalyDetector>();
-builder.Services.AddSingleton<IAnomalyDetector>(sp =>
-{
-    var settings = sp.GetRequiredService<IOptions<AnomalyDetectionSettings>>().Value;
-    return settings.Mode switch
-    {
-        DetectionMode.Rules => sp.GetRequiredService<RollingThresholdDetector>(),
-        DetectionMode.Ml => sp.GetRequiredService<MlAnomalyDetector>(),
-        DetectionMode.Hybrid => new HybridDetector(
-            sp.GetRequiredService<RollingThresholdDetector>(),
-            sp.GetRequiredService<MlAnomalyDetector>()),
-        _ => sp.GetRequiredService<RollingThresholdDetector>()
-    };
-});
-builder.Services.AddSingleton<AnomalyDetectionService>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetectionService>());
-
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(rb => rb.AddService("gateway"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter())
-    .WithMetrics(metrics =>
-    {
-        metrics.AddAspNetCoreInstrumentation();
-        metrics.AddHttpClientInstrumentation();
-        metrics.AddRuntimeInstrumentation();
-        metrics.AddProcessInstrumentation();
-        metrics.AddMeter(GatewayDiagnostics.MeterName);
-        metrics.AddPrometheusExporter();
-        metrics.AddOtlpExporter();
-    });
-
-builder.Logging.AddOpenTelemetry(options =>
-{
-    options.IncludeScopes = true;
-    options.IncludeFormattedMessage = true;
-    options.ParseStateValues = true;
-    options.AddOtlpExporter();
-});
+// Service and middleware configuration extracted to extension method
+builder.Services.AddGatewayServices(builder.Configuration);
 
 var app = builder.Build();
 
@@ -151,7 +47,20 @@ app.UseMiddleware<JsonValidationMiddleware>();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
-app.MapPost("/api/echo", (System.Text.Json.JsonElement payload) => Results.Json(payload));
+app.MapPost("/api/echo", async (HttpContext ctx) =>
+{
+    // mark as WAF hit when ?waf=1 is present
+    if (ctx.Request.Query.ContainsKey("waf"))
+        ctx.Items["WafHit"] = true;
+
+    // allow forcing a status code via ?status=XXX
+    if (ctx.Request.Query.TryGetValue("status", out var s) &&
+        int.TryParse(s, out var code))
+        return Results.StatusCode(code);
+
+    var payload = await ctx.Request.ReadFromJsonAsync<JsonElement>();
+    return Results.Json(payload);
+});
 app.MapReverseProxy();
 app.MapPrometheusScrapingEndpoint();
 
