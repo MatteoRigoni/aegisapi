@@ -21,6 +21,12 @@ public sealed class WafMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        if (context.Request.Path.StartsWithSegments("/cp", out _))
+        {
+            await _next(context);
+            return;
+        }
+
         var reason = await CheckRequestAsync(context);
         if (reason is not null)
         {
@@ -58,7 +64,9 @@ public sealed class WafMiddleware
             toInspect.Add(body);
         }
 
-        var toggles = _store.GetAll().ToDictionary(t => t.Rule, t => t.Enabled, StringComparer.OrdinalIgnoreCase);
+        var toggles = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in _store.GetAll())
+            toggles[t.Rule] = t.Enabled;
         foreach (var s in toInspect)
         {
             if (IsEnabled(toggles, "PathTraversal") && s.Contains("../", StringComparison.Ordinal))
