@@ -28,12 +28,21 @@ public sealed class ClientRateLimiterMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var clientId = GetClientId(context) ?? context.Connection.RemoteIpAddress?.ToString();
-        if (string.IsNullOrEmpty(clientId))
+        // Skip rate limiting for control plane endpoints.
+        if (context.Request.Path.StartsWithSegments("/cp"))
         {
             await _next(context);
             return;
         }
+
+        // Determine the client identifier. Prefer authenticated client id,
+        // fall back to the remote IP address and finally a shared anonymous id
+        // to ensure unauthenticated clients are still rate limited even when
+        // the server does not provide a remote IP (e.g. under TestServer).
+        var clientId =
+            GetClientId(context) ??
+            context.Connection.RemoteIpAddress?.ToString() ??
+            "anonymous";
 
         var plan = context.User.FindFirst("plan")?.Value;
         var defaultRpm = _plans.Get(IRateLimitPlanStore.DefaultPlan)?.plan.Rpm ?? 100;
