@@ -105,24 +105,16 @@ public static class ServiceConfigurationExtensions
         services.AddSingleton<AnomalyDetectionService>();
         services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetectionService>());
 
-        services.AddOpenTelemetry()
-            .ConfigureResource(rb => rb.AddService("gateway"))
-            .WithTracing(tracing => tracing
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddOtlpExporter())
-            .WithMetrics(metrics =>
-            {
-                metrics.AddAspNetCoreInstrumentation();
-                metrics.AddHttpClientInstrumentation();
-                metrics.AddRuntimeInstrumentation();
-                metrics.AddProcessInstrumentation();
-                metrics.AddMeter(GatewayDiagnostics.MeterName);
-                metrics.AddPrometheusExporter();
-                metrics.AddOtlpExporter();
-            });
+        services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
+        {
+            http.BaseAddress = new Uri(configuration["Summarizer:BaseUrl"] ?? "http://localhost:5290");
+            http.DefaultRequestHeaders.Add("X-Internal-Key", configuration["Summarizer:InternalKey"] ?? "dev");
+        });
+        services.AddHostedService<FeatureConsumerService>();
 
-        loggingBuilder.AddOpenTelemetry(options =>
+
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.AddOpenTelemetry(options =>
         {
             options.IncludeScopes = true;
             options.IncludeFormattedMessage = true;

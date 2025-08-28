@@ -8,6 +8,7 @@ using Gateway.Settings;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
@@ -16,11 +17,9 @@ using OpenTelemetry.Trace;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Text;
-using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Usa il metodo di estensione per configurare servizi e logging
 builder.Services.AddGatewayServices(builder.Configuration, builder.Logging);
 
 var app = builder.Build();
@@ -46,7 +45,20 @@ app.UseMiddleware<JsonValidationMiddleware>();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
-app.MapPost("/api/echo", (System.Text.Json.JsonElement payload) => Results.Json(payload));
+app.MapPost("/api/echo", async (HttpContext ctx) =>
+{
+    // mark as WAF hit when ?waf=1 is present
+    if (ctx.Request.Query.ContainsKey("waf"))
+        ctx.Items["WafHit"] = true;
+
+    // allow forcing a status code via ?status=XXX
+    if (ctx.Request.Query.TryGetValue("status", out var s) &&
+        int.TryParse(s, out var code))
+        return Results.StatusCode(code);
+
+    var payload = await ctx.Request.ReadFromJsonAsync<JsonElement>();
+    return Results.Json(payload);
+});
 app.MapReverseProxy();
 app.MapPrometheusScrapingEndpoint();
 
