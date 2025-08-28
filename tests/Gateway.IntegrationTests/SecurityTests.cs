@@ -82,7 +82,7 @@ public class SecurityTests
                 baseConfig[kv.Key] = kv.Value;
         }
 
-        return new WebApplicationFactory<Program>()
+        return new GatewayFactory()
             .WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");

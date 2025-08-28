@@ -11,7 +11,7 @@ public class PingProxyTests
     [Fact]
     public async Task Root_And_Healthz_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         Assert.Equal("AegisAPI Gateway up", await client.GetStringAsync("/"));
         var resp = await client.GetAsync("/healthz");
@@ -30,7 +30,7 @@ public class PingProxyTests
 
         var backendUrl = backendApp.Urls.Single(); // e.g. http://127.0.0.1:51023/
 
-        using var factory = new WebApplicationFactory<Program>()
+        using var factory = new GatewayFactory()
             .WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");

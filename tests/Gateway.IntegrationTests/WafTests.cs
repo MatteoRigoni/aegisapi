@@ -8,7 +8,7 @@ namespace Gateway.IntegrationTests;
 public class WafTests
 {
     private static WebApplicationFactory<Program> CreateFactory(IDictionary<string, string?>? extra = null)
-        => new WebApplicationFactory<Program>()
+        => new GatewayFactory()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");

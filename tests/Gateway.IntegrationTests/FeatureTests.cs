@@ -21,7 +21,7 @@ public class FeatureTests
     }
 
     private static WebApplicationFactory<Program> CreateFactory()
-        => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        => new GatewayFactory().WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((ctx, config) =>
             {

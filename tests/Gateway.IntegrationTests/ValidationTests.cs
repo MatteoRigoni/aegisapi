@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Gateway.IntegrationTests;
 
-public class ValidationTests : IClassFixture<WebApplicationFactory<Program>>
+public class ValidationTests : IClassFixture<GatewayFactory>
 {
     private readonly HttpClient _client;
 
-    public ValidationTests(WebApplicationFactory<Program> factory)
+    public ValidationTests(GatewayFactory factory)
     {
         _client = factory.CreateClient();
     }

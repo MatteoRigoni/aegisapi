@@ -27,7 +27,7 @@ public class RateLimitingTests
     }
 
     private static WebApplicationFactory<Program> CreateFactory()
-        => new WebApplicationFactory<Program>()
+        => new GatewayFactory()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
