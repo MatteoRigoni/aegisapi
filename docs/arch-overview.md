@@ -1,6 +1,6 @@
 # AegisAPI — Architecture Overview
 
-> An ASP.NET Core (.NET 8) + YARP security gateway with JWT/API key authentication, claim-based authorization, rate limiting, schema validation, WAF protections, anomaly detection, and end-to-end observability via OpenTelemetry. Future work includes OPA/Rego policies, Azure AD integration, and AI-powered incident summaries. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
+> An ASP.NET Core (.NET 8) + YARP security gateway with JWT/API key authentication, claim-based authorization, rate limiting, schema validation, WAF protections, anomaly detection, **AI incident summarization**, and end-to-end observability via OpenTelemetry. Future work includes OPA/Rego policies and Azure AD integration. Targets AKS for data plane, GitHub Actions for CI, Cosign/Trivy/CodeQL for supply chain, and Helm for delivery.
 
 ## 1) Request Flow (Data Plane)
 
@@ -12,7 +12,7 @@ flowchart LR
       A1["AuthN: JWT or API Key"] --> A2["AuthZ: Claim Policy"]
       A2 --> A3["Rate Limit (token bucket, in-memory)"]
       A3 --> A4["Schema Validation (OpenAPI/JSON Schema)"]
-      A4 --> A5["WAF Checks (OWASP CRS or Edge WAF)"]
+      A4 --> A5["WAF Checks (regex for SQLi/XSS/SSRF/Path Traversal)"]
     end
     G -->|"mTLS / JWT"| Svc["Backend Services"]
 ```
@@ -22,6 +22,7 @@ flowchart LR
 - **Authentication**: JWT bearer tokens or API keys. OIDC integration is planned.
 - **Authorization**: simple claim-based policy. OPA sidecar is planned.
 - **Rate Limiting**: in-memory token bucket.
+- **Resilience**: outbound calls use Polly for retries, timeouts, and circuit breakers.
 
 ## 2) Control Plane & OPA Decision Point (planned)
 
@@ -50,20 +51,20 @@ flowchart TB
 - Policies are versioned, tested, and published as bundles (OCI). Gateways pull bundles on start and periodically. 
 - Decision point stays in the gateway (low latency, fail-closed with cached bundles). 
 
-## 3) AI Summarizer Sidecar (planned)
+## 3) AI Summarizer Service
 
 ```mermaid
 flowchart LR
     OTel["OTel Collector"] --> EH["Event Hub or Kafka"]
     EH --> ADSvc["Anomaly Detector (rules and ML)"]
-    ADSvc --> Sidecar["AI Summarizer Sidecar (.NET and Azure OpenAI)"]
-    Sidecar --> GH["GitHub PR Bot"]
-    Sidecar --> Ops["Teams or Email Pager Alerts"]
+    ADSvc --> Summ["AI Summarizer Service (.NET and Azure OpenAI)"]
+    Summ --> GH["GitHub PR Bot"]
+    Summ --> Ops["Teams or Email Pager Alerts"]
 ```
 
 ### Notes
 
-- Summarizes incident context (recent traces, top error spans, request exemplars, policy denials). *(planned)*
+- Summarizes incident context (recent request bundles) using an LLM.
 - Can draft remediation PRs (e.g., tighten policy, add rate-limit, update schema). Requires human approval. *(planned)*
 
 ## 4) Telemetry (OpenTelemetry)
