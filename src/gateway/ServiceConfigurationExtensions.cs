@@ -27,7 +27,7 @@ public static class ServiceConfigurationExtensions
     public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration configuration, ILoggingBuilder loggingBuilder)
     {
         // Resilience configuration
-        services.Configure<ResilienceSettings>(configuration.GetSection("Resilience"));
+        services.AddOptions<ResilienceSettings>().BindConfiguration("Resilience");
         services.AddMemoryCache();
 
         services.AddControllers();
@@ -38,8 +38,9 @@ public static class ServiceConfigurationExtensions
         });
 
         services.AddSingleton<IRouteStore>(sp => {
-            var routesSection = configuration.GetSection("ReverseProxy:Routes");
-            var clustersSection = configuration.GetSection("ReverseProxy:Clusters");
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var routesSection = cfg.GetSection("ReverseProxy:Routes");
+            var clustersSection = cfg.GetSection("ReverseProxy:Clusters");
             var routeList = new List<Gateway.ControlPlane.Models.RouteConfig>();
             foreach (var routeChild in routesSection.GetChildren())
             {
@@ -59,8 +60,9 @@ public static class ServiceConfigurationExtensions
         });
         services.AddSingleton<IRateLimitPlanStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryRateLimitStore();
-            var plans = configuration.GetSection("RateLimiting:Plans").GetChildren();
+            var plans = cfg.GetSection("RateLimiting:Plans").GetChildren();
             foreach (var p in plans)
             {
                 if (int.TryParse(p.Value, out var rpm))
@@ -70,8 +72,9 @@ public static class ServiceConfigurationExtensions
         });
         services.AddSingleton<IWafToggleStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryWafStore();
-            var wafSection = configuration.GetSection("Waf");
+            var wafSection = cfg.GetSection("Waf");
             foreach (var child in wafSection.GetChildren())
             {
                 if (bool.TryParse(child.Value, out var enabled))
@@ -81,8 +84,9 @@ public static class ServiceConfigurationExtensions
         });
         services.AddSingleton<IApiKeyStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryApiKeyStore();
-            var hash = configuration["Auth:ApiKeyHash"];
+            var hash = cfg["Auth:ApiKeyHash"];
             if (!string.IsNullOrEmpty(hash))
                 store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
             return store;
@@ -143,7 +147,7 @@ public static class ServiceConfigurationExtensions
         services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
         services.AddReverseProxy();
 
-        services.Configure<AnomalyDetectionSettings>(configuration.GetSection("AnomalyDetection"));
+        services.AddOptions<AnomalyDetectionSettings>().BindConfiguration("AnomalyDetection");
         services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
         services.AddSingleton<IFeatureSource>(sp => sp.GetRequiredService<IRequestFeatureQueue>());
         services.AddSingleton<RollingThresholdDetector>();
