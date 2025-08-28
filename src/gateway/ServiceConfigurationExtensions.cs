@@ -204,25 +204,25 @@ public static class ServiceConfigurationExtensions
         metrics.AddOtlpExporter();
     });
 
-        services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
-        {
-            // Use a safe default if configuration value is missing or empty
-            var baseUrl = configuration["Summarizer:BaseUrl"];
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                baseUrl = "http://localhost:5290";
-            }
-            http.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
+     services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
+ {
+     // Use a safe default if configuration value is missing or empty
+     var baseUrl = configuration["Summarizer:BaseUrl"];
+     if (string.IsNullOrWhiteSpace(baseUrl))
+     {
+         baseUrl = "http://localhost:5290";
+     }
+     http.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
 
-            var internalKey = configuration["Summarizer:InternalKey"];
-            if (string.IsNullOrWhiteSpace(internalKey))
-            {
-                internalKey = "dev";
-            }
-            http.DefaultRequestHeaders.Add("X-Internal-Key", internalKey);
-        });
-        services.AddHostedService<FeatureConsumerService>();
+     var internalKey = configuration["Summarizer:InternalKey"];
+     if (string.IsNullOrWhiteSpace(internalKey))
+     {
+         internalKey = "dev";
+     }
+     http.DefaultRequestHeaders.Add("X-Internal-Key", internalKey);
+ });
+ services.AddHostedService<FeatureConsumerService>();
 
-        return services;
+ return services;
     }
 }
