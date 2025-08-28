@@ -35,9 +35,9 @@ public class FeatureTests
                     ["AnomalyDetection:UaEntropyThreshold"] = "0",
                     // Override proxy routes to avoid forwarding to a non-existent backend during tests
                     ["ReverseProxy:Routes:public:ClusterId"] = "backend",
-                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catch-all}",
+                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catchAll}",
                     ["ReverseProxy:Routes:secure:ClusterId"] = "backend",
-                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catch-all}",
+                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catchAll}",
                     ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = "http://localhost:5005/",
                 });
             });

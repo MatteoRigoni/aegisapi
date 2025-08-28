@@ -1,6 +1,7 @@
 using Gateway.ControlPlane.Models;
 using Gateway.ControlPlane.Stores;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing.Patterns;
 
 namespace Gateway.ControlPlane.Controllers;
 
@@ -20,6 +21,9 @@ public sealed class RoutesController : ControllerBase
     [HttpPost]
     public ActionResult<RouteConfig> Create(RouteConfig route)
     {
+        try { RoutePatternFactory.Parse(route.Path); }
+        catch { return BadRequest(); }
+
         var (created, etag) = _store.Add(route);
         Response.Headers.ETag = $"\"{etag}\"";
         _audit.Log(User.Identity?.Name ?? "anon", "route", created.Id, "create", null, created);
@@ -32,6 +36,9 @@ public sealed class RoutesController : ControllerBase
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
         var match = etag!.ToString().Trim('"');
+        try { RoutePatternFactory.Parse(route.Path); }
+        catch { return BadRequest(); }
+
         if (!_store.TryUpdate(id, route with { Id = id }, match, out var newEtag, out var before))
             return Conflict();
         Response.Headers.ETag = $"\"{newEtag}\"";
