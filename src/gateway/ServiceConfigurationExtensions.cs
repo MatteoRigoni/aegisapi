@@ -97,8 +97,7 @@ public static class ServiceConfigurationExtensions
             return store;
         });
         services.AddSingleton<IAuditLog, InMemoryAuditLog>();
-        services.AddSingleton<DynamicProxyConfigProvider>();
-        services.AddSingleton<IProxyConfigProvider>(sp => sp.GetRequiredService<DynamicProxyConfigProvider>());
+        // NOTE: Register YARP core first, then override its default IProxyConfigProvider with our dynamic provider
 
         const string ApiKeyScheme = "ApiKey";
         const string BearerOrApiKeyScheme = "BearerOrApiKey";
@@ -160,6 +159,9 @@ public static class ServiceConfigurationExtensions
         // YARP resilience
         services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
         services.AddReverseProxy();
+        // Override YARP's default IProxyConfigProvider after AddReverseProxy so our dynamic provider is used
+        services.AddSingleton<DynamicProxyConfigProvider>();
+        services.AddSingleton<IProxyConfigProvider>(sp => sp.GetRequiredService<DynamicProxyConfigProvider>());
 
         services.AddOptions<AnomalyDetectionSettings>().BindConfiguration("AnomalyDetection");
         services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
@@ -201,8 +203,20 @@ public static class ServiceConfigurationExtensions
 
         services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
         {
-            http.BaseAddress = new Uri(configuration["Summarizer:BaseUrl"] ?? "http://localhost:5290");
-            http.DefaultRequestHeaders.Add("X-Internal-Key", configuration["Summarizer:InternalKey"] ?? "dev");
+            // Use a safe default if configuration value is missing or empty
+            var baseUrl = configuration["Summarizer:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "http://localhost:5290";
+            }
+            http.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
+
+            var internalKey = configuration["Summarizer:InternalKey"];
+            if (string.IsNullOrWhiteSpace(internalKey))
+            {
+                internalKey = "dev";
+            }
+            http.DefaultRequestHeaders.Add("X-Internal-Key", internalKey);
         });
         services.AddHostedService<FeatureConsumerService>();
 
