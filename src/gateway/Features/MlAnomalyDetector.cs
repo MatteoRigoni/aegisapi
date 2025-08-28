@@ -26,7 +26,7 @@ namespace Gateway.Features;
 public class MlAnomalyDetector : IAnomalyDetector, IDisposable
 {
     private readonly AnomalyDetectionSettings _settings;
-    private readonly MLContext _ml = new();
+    private readonly MLContext _ml = new MLContext(seed: 1);
     private readonly DefaultObjectPoolProvider _poolProvider = new();
     private readonly ModelHolder _holder = new();
     private readonly ConcurrentQueue<(DateTime ts, float[] vec)> _buffer = new();
@@ -259,7 +259,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             Rank = rank,
             EnsureZeroMean = true,
             // Conservative oversampling; reduces chance of numerical issues on small dims.
-            Oversampling = Math.Min(3, rank)
+            Oversampling = Math.Min(3, rank),
+            Seed = 1
         };
 
         // NormalizeMeanVariance can produce NaNs when a slot has zero variance
