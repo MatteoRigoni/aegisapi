@@ -29,7 +29,17 @@ public sealed class DynamicProxyConfigProvider : IProxyConfigProvider
             {
                 RouteId = r.Id,
                 ClusterId = r.Id,
-                Match = new RouteMatch { Path = r.Path }
+                Match = new RouteMatch { Path = r.Path },
+                AuthorizationPolicy = r.AuthorizationPolicy,
+                Transforms = string.IsNullOrEmpty(r.PathRemovePrefix)
+                    ? null
+                    : new[]
+                    {
+                        new Dictionary<string, string>
+                        {
+                            ["PathRemovePrefix"] = r.PathRemovePrefix!
+                        }
+                    }
             });
             clusters.Add(new ClusterConfig
             {
@@ -37,7 +47,8 @@ public sealed class DynamicProxyConfigProvider : IProxyConfigProvider
                 Destinations = new Dictionary<string, DestinationConfig>
                 {
                     ["d1"] = new DestinationConfig { Address = r.Destination }
-                }
+                },
+                HttpRequest = r.ActivityTimeout is null ? null : new ForwarderRequestConfig { ActivityTimeout = r.ActivityTimeout }
             });
         }
         var cts = new CancellationTokenSource();

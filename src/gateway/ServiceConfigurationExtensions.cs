@@ -27,7 +27,7 @@ public static class ServiceConfigurationExtensions
     public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration configuration, ILoggingBuilder loggingBuilder)
     {
         // Resilience configuration
-        services.Configure<ResilienceSettings>(configuration.GetSection("Resilience"));
+        services.AddOptions<ResilienceSettings>().BindConfiguration("Resilience");
         services.AddMemoryCache();
 
         services.AddControllers();
@@ -38,29 +38,45 @@ public static class ServiceConfigurationExtensions
         });
 
         services.AddSingleton<IRouteStore>(sp => {
-            var routesSection = configuration.GetSection("ReverseProxy:Routes");
-            var clustersSection = configuration.GetSection("ReverseProxy:Clusters");
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var routesSection = cfg.GetSection("ReverseProxy:Routes");
+            var clustersSection = cfg.GetSection("ReverseProxy:Clusters");
             var routeList = new List<Gateway.ControlPlane.Models.RouteConfig>();
             foreach (var routeChild in routesSection.GetChildren())
             {
                 var routeId = routeChild.Key;
                 var path = routeChild.GetSection("Match:Path").Value ?? routeChild.GetSection("Match").GetValue<string>("Path") ?? "/";
                 var clusterId = routeChild["ClusterId"] ?? routeId;
-                var destination = clustersSection.GetSection(clusterId).GetSection("Destinations:d1:Address").Value
-                    ?? clustersSection.GetSection(clusterId).GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
+                var clusterSection = clustersSection.GetSection(clusterId);
+                var destination = clusterSection.GetSection("Destinations:d1:Address").Value
+                    ?? clusterSection.GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
                     ?? "";
+                TimeSpan? activityTimeout = null;
+                var timeoutStr = clusterSection.GetSection("HttpRequest")["ActivityTimeout"];
+                if (TimeSpan.TryParse(timeoutStr, out var parsed))
+                    activityTimeout = parsed;
+                string? authPolicy = routeChild["AuthorizationPolicy"];
+                string? pathRemovePrefix = null;
+                foreach (var t in routeChild.GetSection("Transforms").GetChildren())
+                {
+                    pathRemovePrefix ??= t["PathRemovePrefix"];
+                }
                 routeList.Add(new Gateway.ControlPlane.Models.RouteConfig {
                     Id = routeId,
                     Path = path,
-                    Destination = destination
+                    Destination = destination,
+                    AuthorizationPolicy = authPolicy,
+                    PathRemovePrefix = pathRemovePrefix,
+                    ActivityTimeout = activityTimeout
                 });
             }
             return new InMemoryRouteStore(routeList);
         });
         services.AddSingleton<IRateLimitPlanStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryRateLimitStore();
-            var plans = configuration.GetSection("RateLimiting:Plans").GetChildren();
+            var plans = cfg.GetSection("RateLimiting:Plans").GetChildren();
             foreach (var p in plans)
             {
                 if (int.TryParse(p.Value, out var rpm))
@@ -70,8 +86,9 @@ public static class ServiceConfigurationExtensions
         });
         services.AddSingleton<IWafToggleStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryWafStore();
-            var wafSection = configuration.GetSection("Waf");
+            var wafSection = cfg.GetSection("Waf");
             foreach (var child in wafSection.GetChildren())
             {
                 if (bool.TryParse(child.Value, out var enabled))
@@ -81,8 +98,9 @@ public static class ServiceConfigurationExtensions
         });
         services.AddSingleton<IApiKeyStore>(sp =>
         {
+            var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryApiKeyStore();
-            var hash = configuration["Auth:ApiKeyHash"];
+            var hash = cfg["Auth:ApiKeyHash"];
             if (!string.IsNullOrEmpty(hash))
                 store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
             return store;
@@ -143,7 +161,7 @@ public static class ServiceConfigurationExtensions
         services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
         services.AddReverseProxy();
 
-        services.Configure<AnomalyDetectionSettings>(configuration.GetSection("AnomalyDetection"));
+        services.AddOptions<AnomalyDetectionSettings>().BindConfiguration("AnomalyDetection");
         services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
         services.AddSingleton<IFeatureSource>(sp => sp.GetRequiredService<IRequestFeatureQueue>());
         services.AddSingleton<RollingThresholdDetector>();
