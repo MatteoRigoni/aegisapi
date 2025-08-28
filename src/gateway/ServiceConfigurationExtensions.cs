@@ -19,6 +19,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Yarp.ReverseProxy.Configuration;
 using Gateway.Settings;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Gateway;
 
@@ -93,6 +94,25 @@ public static class ServiceConfigurationExtensions
             {
                 if (bool.TryParse(child.Value, out var enabled))
                     store.Add(new WafToggle { Rule = child.Key, Enabled = enabled });
+            }
+            return store;
+        });
+        services.AddSingleton<ISchemaStore>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var env = sp.GetRequiredService<IWebHostEnvironment>();
+            var store = new InMemorySchemaStore();
+            var section = cfg.GetSection("Schemas");
+            foreach (var child in section.GetChildren())
+            {
+                var file = child.Value;
+                if (string.IsNullOrEmpty(file)) continue;
+                var schemaPath = Path.IsPathRooted(file) ? file : Path.Combine(env.ContentRootPath, file);
+                if (File.Exists(schemaPath))
+                {
+                    var text = File.ReadAllText(schemaPath);
+                    store.Add(new SchemaRecord { Path = child.Key, Schema = text });
+                }
             }
             return store;
         });
