@@ -41,13 +41,17 @@ AegisAPI supporta due modalità di autenticazione:
 
 - 🔐 **Authentication & Authorization** with JWT or API keys and claim-based policies
 
-- 📊 **Rate Limiting & Quotas** with per-tenant and adaptive rules
+- 🚦 **Rate Limiting** with per-client token bucket and plan-aware limits
 
-- 📑 **Schema Validation** for REST & gRPC contracts
+- 📑 **Schema Validation** for REST requests via OpenAPI/JSON Schema
 
-- 🛡 **WAF Protections** (SQLi, XSS, SSRF, DoS) with OWASP CRS + custom rules
+- 🛡 **WAF Protections** with regex checks for path traversal, SQLi, XSS, and SSRF
 
 - 📉 **Anomaly Detection** with per-client and per-route rolling thresholds, normalized routes, HTTP method & UA entropy features, and optional ML.NET models (see [docs/anomaly-detection](docs/anomaly-detection.md))
+
+- 🧠 **AI Incident Summaries** from a dedicated Summarizer service
+
+- ♻️ **Resilience** with Polly-based retries, timeouts, and circuit breakers
 
 - 📈 **Observability** with OpenTelemetry traces, metrics, and logs
 

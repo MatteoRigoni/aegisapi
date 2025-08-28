@@ -14,6 +14,7 @@ Custom counters are provided for gateway specific events:
 | `gateway.rate_limit_hits` | Counter | Requests rejected by the rate limiter |
 | `gateway.waf_blocks` | Counter | Requests blocked by the WAF |
 | `gateway.schema_validation_errors` | Counter | Schema validation failures |
+| `aegis.anomalies` | Counter | Anomalies flagged by the detectors |
 
 In addition, the built-in ASP.NET Core instrumentation exposes request
 count and latency histograms as well as status code dimensions allowing
