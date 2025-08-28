@@ -1,0 +1,122 @@
+openapi: 3.0.1
+info:
+  title: Control Plane
+  version: 1.0.0
+paths:
+  /cp/routes:
+    get:
+      summary: List routes
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create route
+      responses:
+        '201': { description: Created, headers: { ETag: { description: Version tag, schema: { type: string } } } }
+  /cp/routes/{id}:
+    put:
+      summary: Update route
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Updated, headers: { ETag: { description: New tag, schema: { type: string } } } }
+        '409': { description: ETag mismatch }
+    delete:
+      summary: Delete route
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '409': { description: ETag mismatch }
+  /cp/ratelimits:
+    get:
+      summary: List rate limit plans
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create rate limit plan
+      responses:
+        '201': { description: Created, headers: { ETag: { schema: { type: string } } } }
+  /cp/ratelimits/{plan}:
+    put:
+      summary: Update plan
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Updated, headers: { ETag: { schema: { type: string } } } }
+        '409': { description: ETag mismatch }
+    delete:
+      summary: Delete plan
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '409': { description: ETag mismatch }
+  /cp/waf:
+    get:
+      summary: List WAF toggles
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create WAF toggle
+      responses:
+        '201': { description: Created, headers: { ETag: { schema: { type: string } } } }
+  /cp/waf/{rule}:
+    put:
+      summary: Update WAF toggle
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Updated, headers: { ETag: { schema: { type: string } } } }
+        '409': { description: ETag mismatch }
+    delete:
+      summary: Delete WAF toggle
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '409': { description: ETag mismatch }
+  /cp/apikeys:
+    get:
+      summary: List API keys
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create API key
+      responses:
+        '201': { description: Created, headers: { ETag: { schema: { type: string } } } }
+  /cp/apikeys/{id}:
+    put:
+      summary: Update API key
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Updated, headers: { ETag: { schema: { type: string } } } }
+        '409': { description: ETag mismatch }
+    delete:
+      summary: Delete API key
+      parameters:
+        - name: If-Match
+          in: header
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '409': { description: ETag mismatch }
+  /cp/audit:
+    get:
+      summary: Retrieve audit entries
+      responses:
+        '200': { description: OK }

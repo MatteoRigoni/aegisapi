@@ -34,7 +34,7 @@ public class ReliabilityTests
         {
             // YARP routing & transforms
             ["ReverseProxy:Routes:api:ClusterId"] = "backend",
-            ["ReverseProxy:Routes:api:Match:Path"] = "/api/{**catch-all}",
+            ["ReverseProxy:Routes:api:Match:Path"] = "/api/{**catchAll}",
             ["ReverseProxy:Routes:api:Transforms:0:PathRemovePrefix"] = "/api",
             // Ephemeral backend
             ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = backendUrl,
@@ -54,12 +54,13 @@ public class ReliabilityTests
                 baseConfig[kv.Key] = kv.Value;
         }
 
-        return new WebApplicationFactory<Program>()
+        return new GatewayFactory()
             .WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");
                 b.ConfigureAppConfiguration((_, cfg) =>
                 {
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(baseConfig);
                 });
             });

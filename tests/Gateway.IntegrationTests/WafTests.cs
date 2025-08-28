@@ -1,14 +1,16 @@
+using Gateway.ControlPlane.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using System.Net;
+using System.Net.Http.Json;
 
 namespace Gateway.IntegrationTests;
 
 public class WafTests
 {
     private static WebApplicationFactory<Program> CreateFactory(IDictionary<string, string?>? extra = null)
-        => new WebApplicationFactory<Program>()
+        => new GatewayFactory()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
@@ -16,6 +18,7 @@ public class WafTests
                 {
                     builder.ConfigureAppConfiguration((_, cfg) =>
                     {
+                        cfg.Sources.Clear();
                         cfg.AddInMemoryCollection(extra);
                     });
                 }
@@ -82,5 +85,22 @@ public class WafTests
 
         var resp = await client.GetAsync("/healthz?input=' OR 1=1 --");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Rule_Can_Be_Disabled_Via_ControlPlane()
+    {
+        using var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        var blocked = await client.GetAsync("/healthz?input=<script>alert(1)</script>");
+        Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
+
+        var toggle = new WafToggle { Rule = "xss", Enabled = false };
+        var disable = await client.PostAsJsonAsync("/cp/waf", toggle);
+        Assert.Equal(HttpStatusCode.Created, disable.StatusCode);
+
+        var allowed = await client.GetAsync("/healthz?input=<script>alert(1)</script>");
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
 }

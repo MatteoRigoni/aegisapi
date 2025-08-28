@@ -3,8 +3,11 @@ using Gateway.Observability;
 using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
-using Gateway.Settings;
 using Gateway.Validation;
+using Gateway.ControlPlane.Stores;
+using Gateway.ControlPlane;
+using Gateway.ControlPlane.Models;
+using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -14,6 +17,8 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Yarp.ReverseProxy.Configuration;
+using Gateway.Settings;
 
 namespace Gateway;
 
@@ -22,10 +27,80 @@ public static class ServiceConfigurationExtensions
     public static IServiceCollection AddGatewayServices(this IServiceCollection services, IConfiguration configuration, ILoggingBuilder loggingBuilder)
     {
         // Resilience configuration
-        services.Configure<ResilienceSettings>(configuration.GetSection("Resilience"));
-        services.Configure<RateLimitingSettings>(configuration.GetSection("RateLimiting"));
-        services.Configure<WafSettings>(configuration.GetSection("Waf"));
+        services.AddOptions<ResilienceSettings>().BindConfiguration("Resilience");
         services.AddMemoryCache();
+
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Control Plane", Version = "v1" });
+        });
+
+        services.AddSingleton<IRouteStore>(sp => {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var routesSection = cfg.GetSection("ReverseProxy:Routes");
+            var clustersSection = cfg.GetSection("ReverseProxy:Clusters");
+            var routeList = new List<Gateway.ControlPlane.Models.RouteConfig>();
+            foreach (var routeChild in routesSection.GetChildren())
+            {
+                var routeId = routeChild.Key;
+                var path = routeChild.GetSection("Match:Path").Value ?? routeChild.GetSection("Match").GetValue<string>("Path") ?? "/";
+                var clusterId = routeChild["ClusterId"] ?? routeId;
+                var clusterSection = clustersSection.GetSection(clusterId);
+                var destination = clusterSection.GetSection("Destinations:d1:Address").Value
+                    ?? clusterSection.GetSection("Destinations").GetChildren().FirstOrDefault()?.GetValue<string>("Address")
+                    ?? "";
+                TimeSpan? activityTimeout = null;
+                var timeoutStr = clusterSection.GetSection("HttpRequest")["ActivityTimeout"];
+                if (TimeSpan.TryParse(timeoutStr, out var parsed))
+                    activityTimeout = parsed;
+                string? authPolicy = routeChild["AuthorizationPolicy"];
+                string? pathRemovePrefix = null;
+                foreach (var t in routeChild.GetSection("Transforms").GetChildren())
+                {
+                    pathRemovePrefix ??= t["PathRemovePrefix"];
+                }
+                routeList.Add(new Gateway.ControlPlane.Models.RouteConfig {
+                    Id = routeId,
+                    Path = path,
+                    Destination = destination,
+                    AuthorizationPolicy = authPolicy,
+                    PathRemovePrefix = pathRemovePrefix,
+                    ActivityTimeout = activityTimeout
+                });
+            }
+            return new InMemoryRouteStore(routeList);
+        });
+        services.AddSingleton<IRateLimitPlanStore>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var store = new InMemoryRateLimitStore();
+            var defaultRpm = cfg.GetValue<int?>("RateLimiting:DefaultRpm");
+            if (defaultRpm.HasValue)
+                store.Add(new RateLimitPlan { Plan = IRateLimitPlanStore.DefaultPlan, Rpm = defaultRpm.Value });
+            var plans = cfg.GetSection("RateLimiting:Plans").GetChildren();
+            foreach (var p in plans)
+            {
+                if (int.TryParse(p.Value, out var rpm))
+                    store.Add(new RateLimitPlan { Plan = p.Key, Rpm = rpm });
+            }
+            return store;
+        });
+        services.AddSingleton<IWafToggleStore>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var store = new InMemoryWafStore();
+            var wafSection = cfg.GetSection("Waf");
+            foreach (var child in wafSection.GetChildren())
+            {
+                if (bool.TryParse(child.Value, out var enabled))
+                    store.Add(new WafToggle { Rule = child.Key, Enabled = enabled });
+            }
+            return store;
+        });
+        services.AddSingleton<IAuditLog, InMemoryAuditLog>();
+        // NOTE: Register YARP core first, then override its default IProxyConfigProvider with our dynamic provider
 
         const string ApiKeyScheme = "ApiKey";
         const string BearerOrApiKeyScheme = "BearerOrApiKey";
@@ -49,7 +124,7 @@ public static class ServiceConfigurationExtensions
         })
         .AddJwtBearer(options =>
         {
-            var jwtKey = configuration["Auth:JwtKey"] ?? "dev-secret";
+            var jwtKey = string.IsNullOrWhiteSpace(configuration["Auth:JwtKey"]) ? "dev-secret" : configuration["Auth:JwtKey"];
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = false,
@@ -62,6 +137,15 @@ public static class ServiceConfigurationExtensions
         .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyScheme, options =>
         {
             options.ClaimsIssuer = ApiKeyScheme;
+        })
+        .Services.AddSingleton<IApiKeyStore>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var store = new InMemoryApiKeyStore();
+            var hash = cfg["Auth:ApiKeyHash"];
+            if (!string.IsNullOrEmpty(hash))
+                store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
+            return store;
         });
 
         // Authorization
@@ -71,20 +155,18 @@ public static class ServiceConfigurationExtensions
             {
                 policy.RequireAssertion(ctx =>
                     ctx.User.HasClaim("scope", "api.read") ||
-                    ctx.User.HasClaim("ApiKey", "Valid"));
+                    ctx.User.HasClaim(c => c.Type == "ApiKey"));
             });
         });
 
-        // ApiKey configuration
-        services
-            .AddOptions<ApiKeyValidationOptions>()
-            .Configure<IConfiguration>((opt, cfg) => opt.Hash = cfg["Auth:ApiKeyHash"] ?? "");
-
         // YARP resilience
         services.AddSingleton<Yarp.ReverseProxy.Forwarder.IForwarderHttpClientFactory, ResilienceForwarderHttpClientFactory>();
-        services.AddReverseProxy().LoadFromConfig(configuration.GetSection("ReverseProxy"));
+        services.AddReverseProxy();
+        // Override YARP's default IProxyConfigProvider after AddReverseProxy so our dynamic provider is used
+        services.AddSingleton<DynamicProxyConfigProvider>();
+        services.AddSingleton<IProxyConfigProvider>(sp => sp.GetRequiredService<DynamicProxyConfigProvider>());
 
-        services.Configure<AnomalyDetectionSettings>(configuration.GetSection("AnomalyDetection"));
+        services.AddOptions<AnomalyDetectionSettings>().BindConfiguration("AnomalyDetection");
         services.AddSingleton<IRequestFeatureQueue, RequestFeatureQueue>();
         services.AddSingleton<IFeatureSource>(sp => sp.GetRequiredService<IRequestFeatureQueue>());
         services.AddSingleton<RollingThresholdDetector>();
@@ -105,21 +187,42 @@ public static class ServiceConfigurationExtensions
         services.AddSingleton<AnomalyDetectionService>();
         services.AddHostedService(sp => sp.GetRequiredService<AnomalyDetectionService>());
 
-        services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
-        {
-            http.BaseAddress = new Uri(configuration["Summarizer:BaseUrl"] ?? "http://localhost:5290");
-            http.DefaultRequestHeaders.Add("X-Internal-Key", configuration["Summarizer:InternalKey"] ?? "dev");
-        });
-        services.AddHostedService<FeatureConsumerService>();
+        services.AddOpenTelemetry()
+    .ConfigureResource(rb => rb.AddService("gateway"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics =>
+    {
+        metrics.AddAspNetCoreInstrumentation();
+        metrics.AddHttpClientInstrumentation();
+        metrics.AddRuntimeInstrumentation();
+        metrics.AddProcessInstrumentation();
+        metrics.AddMeter(GatewayDiagnostics.MeterName);
+        metrics.AddPrometheusExporter();
+        metrics.AddOtlpExporter();
+    });
 
-        loggingBuilder.AddOpenTelemetry(options =>
-        {
-            options.IncludeScopes = true;
-            options.IncludeFormattedMessage = true;
-            options.ParseStateValues = true;
-            options.AddOtlpExporter();
-        });
+     services.AddHttpClient<Gateway.AI.ISummarizerClient, Gateway.AI.SummarizerHttpClient>(http =>
+ {
+     // Use a safe default if configuration value is missing or empty
+     var baseUrl = configuration["Summarizer:BaseUrl"];
+     if (string.IsNullOrWhiteSpace(baseUrl))
+     {
+         baseUrl = "http://localhost:5290";
+     }
+     http.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
 
-        return services;
+     var internalKey = configuration["Summarizer:InternalKey"];
+     if (string.IsNullOrWhiteSpace(internalKey))
+     {
+         internalKey = "dev";
+     }
+     http.DefaultRequestHeaders.Add("X-Internal-Key", internalKey);
+ });
+ services.AddHostedService<FeatureConsumerService>();
+
+ return services;
     }
 }

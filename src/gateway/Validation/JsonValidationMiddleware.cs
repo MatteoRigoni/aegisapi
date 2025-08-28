@@ -15,7 +15,7 @@ public class JsonValidationMiddleware
         _schemaRoot = Path.Combine(env.ContentRootPath, "Schemas");
     }
 
-    public async Task Invoke(HttpContext context)
+    public async Task InvokeAsync(HttpContext context)
     {
         if (!context.Request.Path.StartsWithSegments("/api", out var remainder))
         {
@@ -30,48 +30,12 @@ public class JsonValidationMiddleware
                 ? Path.Combine(_schemaRoot, remainder.Value.Trim('/') + ".json")
                 : null;
 
-            if (schemaFile != null && File.Exists(schemaFile))
+            var validationResult = await TryValidateRequestAsync(context, schemaFile);
+            if (!validationResult.isValid)
             {
-                schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
-                context.Request.EnableBuffering();
-                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
-                var body = await reader.ReadToEndAsync();
-                context.Request.Body.Position = 0;
-                var json = JsonNode.Parse(body);
-                var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
-                if (!result.IsValid)
-                {
-                    GatewayDiagnostics.SchemaValidationErrors.Add(1);
-                    context.Items["SchemaError"] = true;
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    var errors = result.Details
-                       .Where(d => d.Errors != null && d.Errors.Count > 0)
-                       .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
-                    await context.Response.WriteAsJsonAsync(new { errors });
-                    return;
-                }
+                return;
             }
-            if (File.Exists(schemaFile))
-            {
-                schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
-                context.Request.EnableBuffering();
-                using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
-                var body = await reader.ReadToEndAsync();
-                context.Request.Body.Position = 0;
-                var json = JsonNode.Parse(body);
-                var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
-                if (!result.IsValid)
-                {
-                    GatewayDiagnostics.SchemaValidationErrors.Add(1);
-                    context.Items["SchemaError"] = true;
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    var errors = result.Details
-                       .Where(d => d.Errors != null && d.Errors.Count > 0)
-                       .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
-                    await context.Response.WriteAsJsonAsync(new { errors });
-                    return;
-                }
-            }
+            schema = validationResult.schema;
         }
 
         if (schema != null)
@@ -109,5 +73,32 @@ public class JsonValidationMiddleware
         }
 
         await _next(context);
+    }
+
+    private async Task<(bool isValid, JsonSchema? schema)> TryValidateRequestAsync(HttpContext context, string? schemaFile)
+    {
+        JsonSchema? schema = null;
+        if (schemaFile != null && File.Exists(schemaFile))
+        {
+            schema = JsonSchema.FromText(await File.ReadAllTextAsync(schemaFile));
+            context.Request.EnableBuffering();
+            using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+            var body = await reader.ReadToEndAsync();
+            context.Request.Body.Position = 0;
+            var json = JsonNode.Parse(body);
+            var result = schema.Evaluate(json, new EvaluationOptions { OutputFormat = OutputFormat.List });
+            if (!result.IsValid)
+            {
+                GatewayDiagnostics.SchemaValidationErrors.Add(1);
+                context.Items["SchemaError"] = true;
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                var errors = result.Details
+                    .Where(d => d.Errors != null && d.Errors.Count > 0)
+                    .SelectMany(d => d.Errors!, (d, err) => new { path = d.InstanceLocation.ToString(), error = err.Value });
+                await context.Response.WriteAsJsonAsync(new { errors });
+                return (false, schema);
+            }
+        }
+        return (true, schema);
     }
 }

@@ -1,14 +1,15 @@
-namespace Gateway.Settings;
-
-public class RateLimitingSettings
+﻿namespace Gateway.Settings
 {
-    public int DefaultRpm { get; set; } = 100;
-    public Dictionary<string, int> Plans { get; set; } = new();
-
-    public int GetLimit(string? plan)
+    public class RateLimitingSettings
     {
-        if (!string.IsNullOrEmpty(plan) && Plans.TryGetValue(plan, out var limit))
-            return limit;
-        return DefaultRpm;
+        public int DefaultRpm { get; set; } = 100;
+        public Dictionary<string, int> Plans { get; set; } = new();
+
+        public int GetLimit(string? plan)
+        {
+            if (!string.IsNullOrEmpty(plan) && Plans.TryGetValue(plan, out var limit))
+                return limit;
+            return DefaultRpm;
+        }
     }
 }

@@ -26,7 +26,7 @@ namespace Gateway.Features;
 public class MlAnomalyDetector : IAnomalyDetector, IDisposable
 {
     private readonly AnomalyDetectionSettings _settings;
-    private readonly MLContext _ml = new();
+    private readonly MLContext _ml = new MLContext(seed: 1);
     private readonly DefaultObjectPoolProvider _poolProvider = new();
     private readonly ModelHolder _holder = new();
     private readonly ConcurrentQueue<(DateTime ts, float[] vec)> _buffer = new();
@@ -251,7 +251,14 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
         var vecType = dv.Schema[featureCol].Type as VectorDataViewType;
         var dim = vecType?.Size ?? 0;
         var wanted = Math.Min(5, dim);
-        var rank = Math.Max(1, Math.Min(wanted, activeDim > 0 ? activeDim : dim));
+
+        // Using a rank equal to the number of active dimensions perfectly spans the
+        // training data subspace and yields zero reconstruction error for any point
+        // lying in that subspace. This effectively disables anomaly detection for
+        // large-but-in-subspace deviations. Clamp the rank to strictly less than the
+        // number of varying dimensions so outliers incur reconstruction error.
+        var capped = activeDim > 1 ? activeDim - 1 : activeDim;
+        var rank = Math.Max(1, Math.Min(wanted, capped > 0 ? capped : dim));
 
         var pca = new RandomizedPcaTrainer.Options
         {
@@ -259,7 +266,8 @@ public class MlAnomalyDetector : IAnomalyDetector, IDisposable
             Rank = rank,
             EnsureZeroMean = true,
             // Conservative oversampling; reduces chance of numerical issues on small dims.
-            Oversampling = Math.Min(3, rank)
+            Oversampling = Math.Min(3, rank),
+            Seed = 1
         };
 
         // NormalizeMeanVariance can produce NaNs when a slot has zero variance

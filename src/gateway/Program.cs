@@ -4,10 +4,10 @@ using Gateway.Observability;
 using Gateway.RateLimiting;
 using Gateway.Resilience;
 using Gateway.Security;
-using Gateway.Settings;
 using Gateway.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Logs;
@@ -22,6 +22,14 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGatewayServices(builder.Configuration, builder.Logging);
 
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
+    options.AddOtlpExporter();
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<FeatureCollectorMiddleware>();
@@ -33,7 +41,8 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Frame-Options"] = "DENY";
     ctx.Response.Headers["X-XSS-Protection"] = "1; mode=block";
     ctx.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    ctx.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    ctx.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:";
     await next();
 });
 
@@ -42,6 +51,9 @@ app.UseAuthentication();
 app.UseMiddleware<ClientRateLimiterMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<JsonValidationMiddleware>();
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapGet("/", () => "AegisAPI Gateway up");
 app.MapGet("/healthz", () => Results.Ok());
@@ -60,7 +72,8 @@ app.MapPost("/api/echo", async (HttpContext ctx) =>
     return Results.Json(payload);
 });
 app.MapReverseProxy();
-app.MapPrometheusScrapingEndpoint();
+var meterProvider = app.Services.GetService<MeterProvider>();
+app.MapControllers();
 
 app.Run();
 

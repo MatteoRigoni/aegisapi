@@ -11,7 +11,7 @@ public class PingProxyTests
     [Fact]
     public async Task Root_And_Healthz_Work()
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new GatewayFactory();
         var client = factory.CreateClient();
         Assert.Equal("AegisAPI Gateway up", await client.GetStringAsync("/"));
         var resp = await client.GetAsync("/healthz");
@@ -30,19 +30,20 @@ public class PingProxyTests
 
         var backendUrl = backendApp.Urls.Single(); // e.g. http://127.0.0.1:51023/
 
-        using var factory = new WebApplicationFactory<Program>()
+        using var factory = new GatewayFactory()
             .WithWebHostBuilder(b =>
             {
                 b.UseEnvironment("Testing");
                 b.ConfigureAppConfiguration((_, cfg) =>
                 {
                     // Override YARP configuration
+                    cfg.Sources.Clear();
                     cfg.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = backendUrl.EndsWith("/") ? backendUrl : backendUrl + "/",
                         // Explicit configuration
                         ["ReverseProxy:Routes:api:ClusterId"] = "backend",
-                        ["ReverseProxy:Routes:api:Match:Path"] = "/public/{**catch-all}",
+                        ["ReverseProxy:Routes:api:Match:Path"] = "/api/{**catchAll}",
                         ["ReverseProxy:Routes:api:Transforms:0:PathRemovePrefix"] = "/api"
                     });
                 });

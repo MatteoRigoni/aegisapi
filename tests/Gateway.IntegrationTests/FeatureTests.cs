@@ -21,10 +21,11 @@ public class FeatureTests
     }
 
     private static WebApplicationFactory<Program> CreateFactory()
-        => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        => new GatewayFactory().WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((ctx, config) =>
             {
+                config.Sources.Clear();
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["AnomalyDetection:RpsThreshold"] = "0",
@@ -33,8 +34,11 @@ public class FeatureTests
                     ["AnomalyDetection:WafThreshold"] = "0",
                     ["AnomalyDetection:UaEntropyThreshold"] = "0",
                     // Override proxy routes to avoid forwarding to a non-existent backend during tests
-                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catch-all}",
-                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catch-all}",
+                    ["ReverseProxy:Routes:public:ClusterId"] = "backend",
+                    ["ReverseProxy:Routes:public:Match:Path"] = "/proxy/{**catchAll}",
+                    ["ReverseProxy:Routes:secure:ClusterId"] = "backend",
+                    ["ReverseProxy:Routes:secure:Match:Path"] = "/proxy/secure/{**catchAll}",
+                    ["ReverseProxy:Clusters:backend:Destinations:d1:Address"] = "http://localhost:5005/",
                 });
             });
         });

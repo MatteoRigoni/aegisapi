@@ -1,8 +1,7 @@
 using Gateway.Security;
 using Gateway.Observability;
-using Gateway.Settings;
+using Gateway.ControlPlane.Stores;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
@@ -15,29 +14,39 @@ public sealed class ClientRateLimiterMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IMemoryCache _cache;
-    private readonly RateLimitingSettings _settings;
+    private readonly IRateLimitPlanStore _plans;
 
     public ClientRateLimiterMiddleware(
         RequestDelegate next,
         IMemoryCache cache,
-        IOptions<RateLimitingSettings> options)
+        IRateLimitPlanStore plans)
     {
         _next = next;
         _cache = cache;
-        _settings = options.Value;
+        _plans = plans;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var clientId = GetClientId(context);
-        if (clientId is null)
+        // Skip rate limiting for control plane endpoints.
+        if (context.Request.Path.StartsWithSegments("/cp"))
         {
             await _next(context);
             return;
         }
 
+        // Determine the client identifier. Prefer authenticated client id,
+        // fall back to the remote IP address and finally a shared anonymous id
+        // to ensure unauthenticated clients are still rate limited even when
+        // the server does not provide a remote IP (e.g. under TestServer).
+        var clientId =
+            GetClientId(context) ??
+            context.Connection.RemoteIpAddress?.ToString() ??
+            "anonymous";
+
         var plan = context.User.FindFirst("plan")?.Value;
-        var limit = _settings.GetLimit(plan);
+        var defaultRpm = _plans.Get(IRateLimitPlanStore.DefaultPlan)?.plan.Rpm ?? 100;
+        var limit = _plans.Get(plan ?? string.Empty)?.plan.Rpm ?? defaultRpm;
         context.Items["ClientId"] = clientId;
         context.Items["RpsWindow"] = limit / 60d;
         var now = DateTime.UtcNow;

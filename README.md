@@ -30,12 +30,17 @@ curl http://localhost:5000/metrics                      # Prometheus metrics
 
 The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that returns a sample `IncidentBundle` for quick experiments.
 
-## Autenticazione
+## Backend configuration
 
-AegisAPI supporta due modalità di autenticazione:
+Backend service addresses are not set in `src/gateway/appsettings.json`.
+In production these values must be provided via environment variables or managed dynamically through the Control Plane.
 
-- **JWT**: inviare un token nell'intestazione `Authorization: Bearer <token>`. Per lo sviluppo, impostare il segreto simmetrico tramite `Auth:JwtKey` in `src/gateway/appsettings.Development.json`.
-- **API key**: inviare la chiave nell'intestazione `X-API-Key: <chiave>`. Per lo sviluppo, configurare `Auth:ApiKeyHash` nello stesso file con l'hash SHA-256 della chiave (`echo -n tua-chiave | sha256sum`).
+## Authentication
+
+AegisAPI supports two authentication modes:
+
+- **JWT**: send a token in the `Authorization: Bearer <token>` header. For development, set the symmetric secret via `Auth:JwtKey` in `src/gateway/appsettings.Development.json`.
+- **API key**: send the key in the `X-API-Key: <key>` header. For development, configure `Auth:ApiKeyHash` in the same file with the SHA-256 hash of the key (`echo -n your-key | sha256sum`).
 
 ### ✨ Features
 
@@ -55,7 +60,9 @@ AegisAPI supporta due modalità di autenticazione:
 
 - 📈 **Observability** with OpenTelemetry traces, metrics, and logs
 
+## Control Plane API
 
+Administrative CRUD endpoints live under `/cp/*` and include routes, rate limit plans, WAF toggles and API keys. Each write operation requires an `If-Match` header and returns the new `ETag`; mismatches yield `409 Conflict`. Every change is appended to an in-memory audit log retrievable via `GET /cp/audit`. The OpenAPI description is available from `/swagger/v1/swagger.json` and browsable at `/swagger`.
 
 ### 📈 Key Performance Indicators
 
