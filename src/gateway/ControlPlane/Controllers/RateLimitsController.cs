@@ -23,7 +23,7 @@ public sealed class RateLimitsController : ControllerBase
         var res = _store.Get(IRateLimitPlanStore.DefaultPlan);
         if (res is null)
             return NotFound();
-        Response.Headers.ETag = res.Value.etag;
+        Response.Headers.ETag = $"\"{res.Value.etag}\"";
         return res.Value.plan;
     }
 
@@ -33,7 +33,7 @@ public sealed class RateLimitsController : ControllerBase
         if (plan.Plan == IRateLimitPlanStore.DefaultPlan || plan.Plan == "default")
             return BadRequest();
         var (created, etag) = _store.Add(plan);
-        Response.Headers.ETag = etag;
+        Response.Headers.ETag = $"\"{etag}\"";
         _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", created.Plan, "create", null, created);
         return CreatedAtAction(nameof(Get), new { id = created.Plan }, created);
     }
@@ -45,9 +45,10 @@ public sealed class RateLimitsController : ControllerBase
             plan = IRateLimitPlanStore.DefaultPlan;
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
-        if (!_store.TryUpdate(plan, updated with { Plan = plan }, etag!, out var newEtag, out var before))
+        var match = etag!.ToString().Trim('"');
+        if (!_store.TryUpdate(plan, updated with { Plan = plan }, match, out var newEtag, out var before))
             return Conflict();
-        Response.Headers.ETag = newEtag;
+        Response.Headers.ETag = $"\"{newEtag}\"";
         _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", plan, "update", before, updated);
         return NoContent();
     }
@@ -61,7 +62,8 @@ public sealed class RateLimitsController : ControllerBase
             return BadRequest();
         if (!Request.Headers.TryGetValue("If-Match", out var etag))
             return BadRequest();
-        if (!_store.TryRemove(plan, etag!, out var before))
+        var match = etag!.ToString().Trim('"');
+        if (!_store.TryRemove(plan, match, out var before))
             return Conflict();
         _audit.Log(User.Identity?.Name ?? "anon", "ratelimit", plan, "delete", before, null);
         return NoContent();
