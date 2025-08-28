@@ -76,6 +76,8 @@ public static class ServiceConfigurationExtensions
         {
             var cfg = sp.GetRequiredService<IConfiguration>();
             var store = new InMemoryRateLimitStore();
+            var defaultRpm = cfg.GetValue<int>("RateLimiting:DefaultRpm", 100);
+            store.Add(new RateLimitPlan { Plan = IRateLimitPlanStore.DefaultPlan, Rpm = defaultRpm });
             var plans = cfg.GetSection("RateLimiting:Plans").GetChildren();
             foreach (var p in plans)
             {
