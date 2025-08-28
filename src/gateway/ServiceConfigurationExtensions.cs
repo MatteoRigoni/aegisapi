@@ -112,9 +112,7 @@ public static class ServiceConfigurationExtensions
         });
         services.AddHostedService<FeatureConsumerService>();
 
-
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.AddOpenTelemetry(options =>
+        loggingBuilder.AddOpenTelemetry(options =>
         {
             options.IncludeScopes = true;
             options.IncludeFormattedMessage = true;
