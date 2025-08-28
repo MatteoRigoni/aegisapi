@@ -96,15 +96,6 @@ public static class ServiceConfigurationExtensions
             }
             return store;
         });
-        services.AddSingleton<IApiKeyStore>(sp =>
-        {
-            var cfg = sp.GetRequiredService<IConfiguration>();
-            var store = new InMemoryApiKeyStore();
-            var hash = cfg["Auth:ApiKeyHash"];
-            if (!string.IsNullOrEmpty(hash))
-                store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
-            return store;
-        });
         services.AddSingleton<IAuditLog, InMemoryAuditLog>();
         services.AddSingleton<DynamicProxyConfigProvider>();
         services.AddSingleton<IProxyConfigProvider>(sp => sp.GetRequiredService<DynamicProxyConfigProvider>());
@@ -144,6 +135,15 @@ public static class ServiceConfigurationExtensions
         .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyScheme, options =>
         {
             options.ClaimsIssuer = ApiKeyScheme;
+        })
+        .Services.AddSingleton<IApiKeyStore>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var store = new InMemoryApiKeyStore();
+            var hash = cfg["Auth:ApiKeyHash"];
+            if (!string.IsNullOrEmpty(hash))
+                store.Add(new ApiKeyRecord { Id = Guid.NewGuid().ToString(), Hash = hash, Plan = string.Empty });
+            return store;
         });
 
         // Authorization
