@@ -89,4 +89,19 @@ public class RateLimitingTests
         Assert.True(statuses.Take(4).All(s => s == HttpStatusCode.OK));
         Assert.Equal(HttpStatusCode.TooManyRequests, statuses.Last());
     }
+
+    [Fact]
+    public async Task Unauthenticated_Client_Is_Rate_Limited_By_IP()
+    {
+        using var factory = CreateFactory();
+        var client = factory.CreateClient();
+
+        var r1 = await client.GetAsync("/");
+        var r2 = await client.GetAsync("/");
+        var r3 = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, r3.StatusCode);
+    }
 }
