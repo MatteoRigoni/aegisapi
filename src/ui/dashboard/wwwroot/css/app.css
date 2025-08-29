@@ -12,9 +12,19 @@
     box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
+html, body, app {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+app {
+    display: block;
+}
+
 .wow-bg {
     background: radial-gradient(circle at top left, #0d47a1, #1b1b1b);
-    min-height: 100vh;
+    height: 100%;
 }
 
 @keyframes gradientShift {
