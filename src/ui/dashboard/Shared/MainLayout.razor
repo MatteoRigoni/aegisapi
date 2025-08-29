@@ -1,8 +1,10 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using MudBlazor
 @using Microsoft.Extensions.Configuration
 
 @inject MudThemeManager ThemeManager
+@inject IBreakpointService BreakpointService
 
 <MudThemeProvider Theme="@ThemeManager.CurrentTheme" IsDarkMode="@ThemeManager.IsDarkMode" />
 <MudDialogProvider />
@@ -17,12 +19,14 @@
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
         </MudAppBar>
-        <MudDrawer Open="isNavMenuOpen" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini" Breakpoint="Breakpoint.Md" OnOpenChanged="OnDrawerOpenChanged">
-            <NavMenu />
-        </MudDrawer>
-        <MudMainContent Class="app-background mud-main-content">
-            @Body
-        </MudMainContent>
+        <MudDrawerContainer>
+            <MudDrawer @bind-Open="isNavMenuOpen" ClipMode="DrawerClipMode.Never" Variant="DrawerVariant.Responsive" MiniVariant="DrawerVariant.Mini" Breakpoint="Breakpoint.Md">
+                <NavMenu />
+            </MudDrawer>
+            <MudMainContent Class="app-background mud-main-content">
+                @Body
+            </MudMainContent>
+        </MudDrawerContainer>
     </MudLayout>
     @if (UseMocks)
     {
@@ -37,6 +41,18 @@
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
     private bool isNavMenuOpen = true;
+    private IDisposable? breakpointSubscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var breakpoint = await BreakpointService.GetBreakpoint();
+        isNavMenuOpen = breakpoint >= Breakpoint.Md;
+        breakpointSubscription = BreakpointService.Subscribe(bp =>
+        {
+            isNavMenuOpen = bp >= Breakpoint.Md;
+            InvokeAsync(StateHasChanged);
+        });
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -91,8 +107,8 @@
         Dialog.Show<SearchDialog>("Command Palette", options);
     }
 
-    private void OnDrawerOpenChanged(bool open)
+    public void Dispose()
     {
-        isNavMenuOpen = open;
+        breakpointSubscription?.Dispose();
     }
 }
