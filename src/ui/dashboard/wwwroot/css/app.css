@@ -35,3 +35,15 @@
     font-weight: bold;
     z-index: 1000;
 }
+
+.neon-title {
+    font-weight: bold;
+    color: #39ff14;
+    text-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14, 0 0 20px #39ff14, 0 0 40px #39ff14;
+    animation: neon-flicker 1.5s infinite alternate;
+}
+
+@keyframes neon-flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
