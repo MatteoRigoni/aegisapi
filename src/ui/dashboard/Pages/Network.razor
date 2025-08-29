@@ -1,0 +1,33 @@
+@page "/network"
+@inject INetworkService NetworkService
+
+<BlazorDiagram Diagram="@_diagram" />
+
+@code {
+    private Diagram _diagram = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var data = await NetworkService.GetNetworkAsync();
+        var index = 0;
+        foreach (var nodeDto in data.Nodes)
+        {
+            var node = new NodeModel(new Point(150 * index, 100))
+            {
+                Id = nodeDto.Id,
+                Title = $"{nodeDto.Label}\n{nodeDto.Requests} req/s\n{nodeDto.Latency} ms"
+            };
+            _diagram.Nodes.Add(node);
+            index++;
+        }
+
+        foreach (var linkDto in data.Links)
+        {
+            var source = _diagram.Nodes.OfType<NodeModel>().First(n => n.Id == linkDto.SourceId);
+            var target = _diagram.Nodes.OfType<NodeModel>().First(n => n.Id == linkDto.TargetId);
+            var link = new LinkModel(source, target);
+            link.Labels.Add(new LinkLabelModel($"{linkDto.Requests} req/s / {linkDto.Latency} ms"));
+            _diagram.Links.Add(link);
+        }
+    }
+}
