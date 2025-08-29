@@ -1,31 +1,37 @@
 @page "/metrics"
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
-<MudGrid Class="pa-4">
-    <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line"
-                  XAxisLabels="@labels.ToArray()"
-                  Series="@new[] { new ChartSeries { Name = "Requests/s", Data = rpsSamples.ToArray() } }" />
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line"
-                  XAxisLabels="@labels.ToArray()"
-                  Series="@new[] { new ChartSeries { Name = "UA Entropy", Data = uaEntropySamples.ToArray() } }" />
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line"
-                  XAxisLabels="@labels.ToArray()"
-                  Series="@new[] { new ChartSeries { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() } }" />
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line"
-                  XAxisLabels="@labels.ToArray()"
-                  Series="@new[] { new ChartSeries { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() } }" />
-    </MudItem>
-</MudGrid>
+<MudStack Class="pa-4" Spacing="2">
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetLayout">Reset layout</MudButton>
+    <div class="grid-stack">
+        <MetricBlock Id="rps" X="0" Y="0" Width="3" Height="2">
+            <MudChart ChartType="ChartType.Line"
+                      XAxisLabels="@labels.ToArray()"
+                      Series="@new[] { new ChartSeries { Name = "Requests/s", Data = rpsSamples.ToArray() } }" />
+        </MetricBlock>
+        <MetricBlock Id="ua" X="3" Y="0" Width="3" Height="2">
+            <MudChart ChartType="ChartType.Line"
+                      XAxisLabels="@labels.ToArray()"
+                      Series="@new[] { new ChartSeries { Name = "UA Entropy", Data = uaEntropySamples.ToArray() } }" />
+        </MetricBlock>
+        <MetricBlock Id="schema" X="6" Y="0" Width="3" Height="2">
+            <MudChart ChartType="ChartType.Line"
+                      XAxisLabels="@labels.ToArray()"
+                      Series="@new[] { new ChartSeries { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() } }" />
+        </MetricBlock>
+        <MetricBlock Id="waf" X="9" Y="0" Width="3" Height="2">
+            <MudChart ChartType="ChartType.Line"
+                      XAxisLabels="@labels.ToArray()"
+                      Series="@new[] { new ChartSeries { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() } }" />
+        </MetricBlock>
+    </div>
+</MudStack>
 
 @code {
+    using System.Text.Json.Serialization;
+
     private readonly List<string> labels = new();
     private readonly List<double> rpsSamples = new();
     private readonly List<double> uaEntropySamples = new();
@@ -34,6 +40,14 @@
     private int sampleIndex;
     private const int MaxSamples = 20;
     private CancellationTokenSource? cts;
+
+    private readonly GridItem[] defaultLayout = new[]
+    {
+        new GridItem { Id = "rps", X = 0, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "ua", X = 3, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "schema", X = 6, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "waf", X = 9, Y = 0, W = 3, H = 2 }
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -45,6 +59,14 @@
         catch (Exception ex)
         {
             Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("metricLayout.init", defaultLayout);
         }
     }
 
@@ -73,8 +95,22 @@
             list.RemoveAt(0);
     }
 
+    private async Task ResetLayout()
+    {
+        await JS.InvokeVoidAsync("metricLayout.reset");
+    }
+
     public void Dispose()
     {
         cts?.Cancel();
+    }
+
+    private class GridItem
+    {
+        [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+        [JsonPropertyName("x")] public int X { get; set; }
+        [JsonPropertyName("y")] public int Y { get; set; }
+        [JsonPropertyName("w")] public int W { get; set; }
+        [JsonPropertyName("h")] public int H { get; set; }
     }
 }
