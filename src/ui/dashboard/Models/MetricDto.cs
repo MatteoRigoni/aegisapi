@@ -1,3 +1,3 @@
 namespace Dashboard.Models;
 
-public record MetricDto(double Cpu, double Memory, int ActiveUsers, double ErrorRate);
+public record MetricDto(double Rps, double UaEntropy, int SchemaErrors, int WafBlocks);

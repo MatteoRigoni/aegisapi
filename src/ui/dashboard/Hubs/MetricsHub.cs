@@ -12,10 +12,10 @@ public class MetricsHub : Hub
         while (true)
         {
             var metric = new MetricDto(
-                rnd.NextDouble() * 100, // CPU Usage
-                rnd.Next(0, 32000),    // Memory Usage
-                rnd.Next(50, 500),     // Active Users
-                rnd.NextDouble() * 5   // Error Rate
+                rnd.NextDouble() * 100, // Requests per second
+                rnd.NextDouble() * 8,   // UA entropy
+                rnd.Next(0, 20),        // Schema errors
+                rnd.Next(0, 10)         // WAF blocks
             );
 
             await Clients.All.SendAsync("metrics", metric);
