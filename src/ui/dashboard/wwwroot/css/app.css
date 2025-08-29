@@ -1,4 +1,21 @@
 
+/* Hide scrollbars while preserving layout */
+html, body {
+    overflow: hidden;
+    margin: 0;
+    height: 100%;
+}
+
+/* Remove visual scrollbar in WebKit browsers */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Remove visual scrollbar in Firefox */
+html {
+    scrollbar-width: none;
+}
+
 /* Use theme colors so the card adapts to light and dark modes */
 .wow-card {
     background: linear-gradient(135deg,
