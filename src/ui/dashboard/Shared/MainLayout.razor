@@ -40,7 +40,7 @@
     [Inject] IDialogService Dialog { get; set; } = default!;
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
-    private bool isNavMenuOpen;
+    private bool isNavMenuOpen = true;
     private IDisposable? breakpointSubscription;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
