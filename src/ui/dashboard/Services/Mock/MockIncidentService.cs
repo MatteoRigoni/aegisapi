@@ -11,6 +11,7 @@ public class MockIncidentService : IIncidentService
             Id = "1",
             Title = "Unauthorized Access",
             Status = "Open",
+            Severity = "Critical",
             Summary = "AI: suspicious login from unknown device detected",
             CreatedAt = DateTime.UtcNow.AddMinutes(-30)
         },
@@ -19,6 +20,7 @@ public class MockIncidentService : IIncidentService
             Id = "2",
             Title = "Malware Detected",
             Status = "Investigating",
+            Severity = "High",
             Summary = "AI: malware signature matched (Trojan.X)",
             CreatedAt = DateTime.UtcNow.AddHours(-2)
         },
@@ -27,6 +29,7 @@ public class MockIncidentService : IIncidentService
             Id = "3",
             Title = "Data Exfiltration",
             Status = "Mitigated",
+            Severity = "Medium",
             Summary = "AI: unusual outbound traffic blocked",
             CreatedAt = DateTime.UtcNow.AddHours(-4)
         }
