@@ -43,21 +43,18 @@
     private bool isNavMenuOpen;
     private IDisposable? breakpointSubscription;
 
-    protected override async Task OnInitializedAsync()
-    {
-        var breakpoint = await BreakpointService.GetBreakpoint();
-        isNavMenuOpen = breakpoint >= Breakpoint.Md;
-        breakpointSubscription = BreakpointService.Subscribe(bp =>
-        {
-            isNavMenuOpen = bp >= Breakpoint.Md;
-            InvokeAsync(StateHasChanged);
-        });
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            var breakpoint = await BreakpointService.GetBreakpoint();
+            isNavMenuOpen = breakpoint >= Breakpoint.Md;
+            breakpointSubscription = BreakpointService.Subscribe(bp =>
+            {
+                isNavMenuOpen = bp >= Breakpoint.Md;
+                InvokeAsync(StateHasChanged);
+            });
+
             await ThemeManager.InitializeAsync();
             StateHasChanged();
         }
