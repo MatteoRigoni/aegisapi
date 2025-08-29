@@ -1,10 +1,13 @@
-import { GridStack } from 'https://cdn.jsdelivr.net/npm/gridstack@9.3.0/dist/gridstack-h5.js';
-
 let grid;
 let defaultLayout;
 
 export function init(layout) {
-  grid = GridStack.init({ float: true });
+  const GridStackLib = window.GridStack;
+  if (!GridStackLib) {
+    console.error('GridStack library is missing');
+    return;
+  }
+  grid = GridStackLib.init({ float: true });
   defaultLayout = layout;
 
   const saved = localStorage.getItem('metrics-layout');
