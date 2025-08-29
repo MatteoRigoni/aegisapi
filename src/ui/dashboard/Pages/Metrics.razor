@@ -1,4 +1,6 @@
 @page "/metrics"
+@using Microsoft.JSInterop
+@using System.Text.Json.Serialization
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -9,28 +11,40 @@
         <MetricBlock Id="rps" X="0" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
                       XAxisLabels="@labels.ToArray()"
-                      Series="@new[] { new ChartSeries { Name = "Requests/s", Data = rpsSamples.ToArray() } }" />
+                      Series="@(
+                                    new ChartSeries[] {
+                                        new() { Name = "Requests/s", Data = rpsSamples.ToArray() }
+                                    })" />
         </MetricBlock>
         <MetricBlock Id="ua" X="3" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
                       XAxisLabels="@labels.ToArray()"
-                      Series="@new[] { new ChartSeries { Name = "UA Entropy", Data = uaEntropySamples.ToArray() } }" />
+                      Series="@(
+                                    new ChartSeries[] {
+                                        new() { Name = "UA Entropy", Data = uaEntropySamples.ToArray() }
+                                    })" />
         </MetricBlock>
         <MetricBlock Id="schema" X="6" Y="0" Width="3" Height="2">
-            <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@labels.ToArray()"
-                      Series="@new[] { new ChartSeries { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() } }" />
+
+                                                <MudChart ChartType="ChartType.Line"
+                                                          XAxisLabels="@labels.ToArray()"
+                                                          Series="@(
+                                    new ChartSeries[] {
+                                        new() { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() }
+                                    })" />
         </MetricBlock>
         <MetricBlock Id="waf" X="9" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
                       XAxisLabels="@labels.ToArray()"
-                      Series="@new[] { new ChartSeries { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() } }" />
+                      Series="@(
+                                    new ChartSeries[] {
+                                        new() { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() }
+                                    })" />
         </MetricBlock>
     </div>
 </MudStack>
 
-@code {
-    using System.Text.Json.Serialization;
+@code {   
 
     private readonly List<string> labels = new();
     private readonly List<double> rpsSamples = new();
@@ -105,7 +119,7 @@
         cts?.Cancel();
     }
 
-    private class GridItem
+    class GridItem
     {
         [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
         [JsonPropertyName("x")] public int X { get; set; }

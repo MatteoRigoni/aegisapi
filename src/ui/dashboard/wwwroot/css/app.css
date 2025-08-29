@@ -1,4 +1,3 @@
-
 /* Hide scrollbars while preserving layout */
 html, body {
     overflow: hidden;
@@ -66,7 +65,21 @@ html {
 .cursive-title {
     font-family: "Brush Script MT", cursive;
     font-style: italic;
-    color: var(--mud-palette-primary);
+    color: #ffffff !important; /* Ensure color is applied */
+    font-size: 1.8rem !important; /* Ensure font size is applied */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Add shadow for better visibility */
+}
+
+@media (min-width: 768px) {
+    .cursive-title {
+        font-size: 2rem !important; /* Medium screens */
+    }
+}
+
+@media (min-width: 1024px) {
+    .cursive-title {
+        font-size: 2.3rem !important; /* Large screens */
+    }
 }
 
 .network-link .mud-nav-link-icon {
@@ -77,4 +90,20 @@ html {
     0% { transform: scale(1); }
     50% { transform: scale(1.2); }
     100% { transform: scale(1); }
+}
+
+/* Ensure the main content respects the drawer's width */
+.mud-main-content {
+    margin-left: 0;
+    transition: margin-left 0.3s ease;
+}
+
+.mud-drawer-open + .mud-main-content {
+    margin-left: 240px; /* Adjust based on the drawer's width */
+}
+
+@media (max-width: 768px) {
+    .mud-drawer-open + .mud-main-content {
+        margin-left: 0; /* Reset for smaller screens */
+    }
 }

@@ -5,19 +5,25 @@
 @inject ISnackbar Snackbar
 
 <MudStack Direction="Row" Spacing="2" Class="mb-4">
-    <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Start" AdornmentIcon="@Icons.Material.Filled.Search" />
-    <MudSelect T="string" @bind-Value="statusFilter" Placeholder="Status">
-        <MudSelectItem Value="">All</MudSelectItem>
-        @foreach (var status in StatusOptions)
+    <MudTextField T="string"
+                  @bind-Value="searchString"
+                  Placeholder="Search"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search" />
+
+    <MudSelect T="string" @bind-Value="statusFilter" Placeholder="Status" Clearable="true">
+        <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
+        @foreach (var s in StatusOptions)
         {
-            <MudSelectItem Value="@status">@status</MudSelectItem>
+            <MudSelectItem T="string" Value="@s">@s</MudSelectItem>
         }
     </MudSelect>
-    <MudSelect T="string" @bind-Value="severityFilter" Placeholder="Severity">
-        <MudSelectItem Value="">All</MudSelectItem>
+
+    <MudSelect T="string" @bind-Value="severityFilter" Placeholder="Severity" Clearable="true">
+        <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
         @foreach (var sev in SeverityOptions)
         {
-            <MudSelectItem Value="@sev">@sev</MudSelectItem>
+            <MudSelectItem T="string" Value="@sev">@sev</MudSelectItem>
         }
     </MudSelect>
 </MudStack>

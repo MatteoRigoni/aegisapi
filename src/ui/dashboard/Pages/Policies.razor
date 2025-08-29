@@ -49,7 +49,7 @@
         {
             if (editor is not null)
             {
-                await editor.Trigger("keyboard", "editor.action.formatDocument", null);
+                await editor.Trigger("keyboard", "editor.action.formatDocument", default(JsonElement));
                 policy = await editor.GetValue();
             }
         }

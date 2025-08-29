@@ -1,9 +1,16 @@
+@using MudBlazor
+@using Microsoft.AspNetCore.Components      
+@using Microsoft.AspNetCore.Components.Web 
+
 @inject NavigationManager Nav
 @inject IIncidentService IncidentService
-@CascadingParameter MudDialogInstance MudDialog { get; set; } = default!
 
 <MudDialogContent>
-    <MudTextField @bind-Value="searchText" Placeholder="Search..." Immediate="true" AutoFocus="true" OnKeyDown="HandleInputKey" />
+    <MudTextField @bind-Value="searchText"
+                  Placeholder="Search..."
+                  Immediate="true"
+                  AutoFocus="true"
+                  OnKeyDown="HandleInputKey" />
     <MudList Dense="true">
         @foreach (var item in FilteredItems)
         {
@@ -13,6 +20,9 @@
 </MudDialogContent>
 
 @code {
+    [CascadingParameter] 
+    MudDialogInstance MudDialog { get; set; } = default!;
+
     private readonly List<SearchItem> items = new();
     private string searchText = string.Empty;
 
@@ -32,15 +42,13 @@
                 items.Add(new(local.Title, () => Nav.NavigateTo($"/incidents/{local.Id}")));
             }
         }
-        catch
-        {
-            // ignore fetching errors in quick search
-        }
+        catch { /* ignore */ }
     }
 
-    private IEnumerable<SearchItem> FilteredItems => items.Where(i => FuzzyMatch(i.Title, searchText)).Take(10);
+    private IEnumerable<SearchItem> FilteredItems
+        => items.Where(i => FuzzyMatch(i.Title, searchText)).Take(10);
 
-    private bool FuzzyMatch(string source, string pattern)
+    private static bool FuzzyMatch(string source, string pattern)
     {
         if (string.IsNullOrWhiteSpace(pattern))
             return true;
@@ -49,8 +57,7 @@
         int s = 0, p = 0;
         while (s < source.Length && p < pattern.Length)
         {
-            if (source[s] == pattern[p])
-                p++;
+            if (source[s] == pattern[p]) p++;
             s++;
         }
         return p == pattern.Length;

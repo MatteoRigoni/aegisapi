@@ -11,15 +11,16 @@
 <div tabindex="0" @onkeydown="HandleKey" @onkeydown:preventDefault="true" @onkeydown:stopPropagation="true">
     <MudLayout>
         <MudAppBar Color="Color.Primary">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Class="hamburger-icon" OnClick="ToggleNavMenu" />
             <span class="cursive-title">Aegis Dashboard</span>
             <MudSpacer />
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
         </MudAppBar>
-        <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
+        <MudDrawer Open="isNavMenuOpen" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini" Breakpoint="Breakpoint.Md" OnOpenChanged="OnDrawerOpenChanged">
             <NavMenu />
         </MudDrawer>
-        <MudMainContent Class="app-background">
+        <MudMainContent Class="app-background mud-main-content">
             @Body
         </MudMainContent>
     </MudLayout>
@@ -35,6 +36,7 @@
     [Inject] IDialogService Dialog { get; set; } = default!;
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
+    private bool isNavMenuOpen = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -49,6 +51,11 @@
     {
         await ThemeManager.ToggleThemeAsync();
         StateHasChanged();
+    }
+
+    private void ToggleNavMenu()
+    {
+        isNavMenuOpen = !isNavMenuOpen;
     }
 
     private void HandleKey(KeyboardEventArgs e)
@@ -82,5 +89,10 @@
         };
 
         Dialog.Show<SearchDialog>("Command Palette", options);
+    }
+
+    private void OnDrawerOpenChanged(bool open)
+    {
+        isNavMenuOpen = open;
     }
 }
