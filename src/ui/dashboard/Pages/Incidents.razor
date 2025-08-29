@@ -1,0 +1,20 @@
+@page "/incidents"
+@using Services
+@inject IIncidentsService Service
+
+<h1>Incidents</h1>
+<ul>
+@foreach (var incident in incidents)
+{
+    <li><a href="incidents/@incident.Id">@incident.Title (@incident.Severity)</a></li>
+}
+</ul>
+
+@code {
+    private IEnumerable<Incident> incidents = Enumerable.Empty<Incident>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        incidents = await Service.GetIncidentsAsync();
+    }
+}

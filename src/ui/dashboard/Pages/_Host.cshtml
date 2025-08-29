@@ -1,0 +1,20 @@
+@page "/"
+@namespace Dashboard.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <title>Aegis Dashboard</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+    <a href="#main" class="skip">Skip to main content</a>
+    <app>
+        @(await Html.RenderComponentAsync<App>(RenderMode.Server))
+    </app>
+    <script src="_framework/blazor.server.js"></script>
+    <script src="js/theme.js"></script>
+</body>
+</html>

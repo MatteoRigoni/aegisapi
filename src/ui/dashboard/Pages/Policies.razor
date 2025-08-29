@@ -1,0 +1,41 @@
+@page "/policies"
+@using Services
+@inject IPolicyService Policiess
+@using System.Text.Json
+
+<h1>Policies</h1>
+<textarea @bind="policy" rows="10" cols="80"></textarea>
+<br />
+<button @onclick="Validate">Validate</button>
+<button @onclick="Save">Save</button>
+<p>@message</p>
+
+@code {
+    private string policy = string.Empty;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        policy = await Policiess.GetPolicyAsync();
+    }
+
+    private void Validate()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(policy);
+            policy = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+            message = "Valid JSON";
+        }
+        catch (Exception ex)
+        {
+            message = $"Invalid JSON: {ex.Message}";
+        }
+    }
+
+    private async Task Save()
+    {
+        await Policiess.SavePolicyAsync(policy);
+        message = "Saved";
+    }
+}
