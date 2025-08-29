@@ -1,5 +1,6 @@
 using Dashboard.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
 
 namespace Dashboard.Services;
 
