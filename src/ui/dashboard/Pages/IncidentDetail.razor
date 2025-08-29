@@ -1,0 +1,35 @@
+@page "/incidents/{id}"
+@using Dashboard.Services
+@inject IIncidentsService IncidentService
+@inject IControlPlaneService Control
+
+<h1>@incident?.Title</h1>
+@if (incident is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <p><strong>Severity:</strong> @incident.Severity</p>
+    <p>@incident.Description</p>
+    <h3>AI Summary</h3>
+    <p>@incident.AiSummary</p>
+    <button @onclick="ApplyFix">Apply fix</button>
+    <p>@message</p>
+}
+
+@code {
+    [Parameter] public string id { get; set; } = string.Empty;
+    private Incident? incident;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        incident = await IncidentService.GetIncidentAsync(id);
+    }
+
+    private async Task ApplyFix()
+    {
+        message = await Control.ApplyFixAsync(id);
+    }
+}

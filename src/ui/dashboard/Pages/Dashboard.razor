@@ -1,0 +1,40 @@
+@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Dashboard.Services
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<h1>Live Metrics</h1>
+<ul>
+    @foreach (var metric in metrics.Values)
+    {
+        <li>@metric.Name: @metric.Value.ToString("F2")</li>
+    }
+</ul>
+
+@code {
+    private HubConnection? hubConnection;
+    private Dictionary<string, Metric> metrics = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/hubs/metrics"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<Metric>("ReceiveMetric", metric =>
+        {
+            metrics[metric.Name] = metric;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+            await hubConnection.DisposeAsync();
+    }
+}
