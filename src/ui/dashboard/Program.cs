@@ -17,9 +17,10 @@ if (useMocks)
 }
 else
 {
-    builder.Services.AddSingleton<IIncidentsService, ApiIncidentsService>();
+    var gateway = builder.Configuration.GetValue<string>("GatewayBaseUrl") ?? "http://localhost:5000";
+    builder.Services.AddHttpClient<IIncidentsService, ApiIncidentsService>(c => c.BaseAddress = new Uri(gateway));
     builder.Services.AddSingleton<IControlPlaneService, ApiControlPlaneService>();
-    builder.Services.AddSingleton<IPolicyService, ApiPolicyService>();
+    builder.Services.AddHttpClient<IPolicyService, ApiPolicyService>(c => c.BaseAddress = new Uri(gateway));
 }
 
 var app = builder.Build();

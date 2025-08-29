@@ -2,5 +2,6 @@ namespace Dashboard.Services;
 
 public class ApiControlPlaneService : IControlPlaneService
 {
-    public Task<string> ApplyFixAsync(string incidentId) => throw new NotImplementedException();
+    public Task<string> ApplyFixAsync(string incidentId)
+        => Task.FromResult("Apply fix API available soon.");
 }

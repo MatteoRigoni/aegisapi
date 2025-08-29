@@ -2,6 +2,7 @@
 @using Dashboard.Services
 @inject IIncidentsService IncidentService
 @inject IControlPlaneService Control
+@inject IJSRuntime JS
 
 <h1>@incident?.Title</h1>
 @if (incident is null)
@@ -31,5 +32,9 @@ else
     private async Task ApplyFix()
     {
         message = await Control.ApplyFixAsync(id);
+        if (message?.Contains("soon", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            await JS.InvokeVoidAsync("alert", message);
+        }
     }
 }

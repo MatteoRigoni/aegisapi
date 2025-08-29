@@ -10,3 +10,4 @@ dotnet run
 ```
 
 The app uses mocked services by default. Configure `UseMocks` in `appsettings.json` to switch to real APIs.
+Set `GatewayBaseUrl` to the running Gateway instance for control plane calls.
