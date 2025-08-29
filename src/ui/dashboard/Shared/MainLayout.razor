@@ -19,14 +19,12 @@
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
         </MudAppBar>
-        <MudDrawerContainer>
-            <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
-                <NavMenu />
-            </MudDrawer>
-            <MudMainContent Class="app-background mud-main-content">
-                @Body
-            </MudMainContent>
-        </MudDrawerContainer>
+        <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent Class="app-background mud-main-content">
+            @Body
+        </MudMainContent>
     </MudLayout>
     @if (UseMocks)
     {
