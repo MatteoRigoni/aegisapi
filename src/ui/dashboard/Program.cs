@@ -9,6 +9,7 @@ using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMudServices();
+builder.Services.AddMudBlazorResizeListener(); // Register IBreakpointService
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSignalR();
@@ -47,6 +48,7 @@ else
         var opts = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;
         client.BaseAddress = new Uri(opts.Summarizer);
     });
+
     builder.Services.AddHttpClient<RealNetworkService>((sp, client) =>
     {
         var opts = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;

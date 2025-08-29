@@ -80,7 +80,14 @@
     {
         if (firstRender)
         {
-            await JS.InvokeVoidAsync("metricLayout.init", defaultLayout);
+            try
+            {
+                await JS.InvokeVoidAsync("metricLayout.init", defaultLayout);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error initializing layout: {ex.Message}", Severity.Error);
+            }
         }
     }
 
