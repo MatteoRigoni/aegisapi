@@ -10,37 +10,48 @@
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetLayout">Reset layout</MudButton>
     <div class="grid-stack">
         <MetricBlock Id="rps" X="0" Y="0" Width="3" Height="2">
-            <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@GetLabels()"
-                      Series="@(
-                                    new ChartSeries[] {
-                                        new() { Name = "Requests/s", Data = GetData(rpsSamples) }
-                                    })" />
+            @if (HasData(rpsSamples))
+            {
+                <MudChart ChartType="ChartType.Line"
+                          XAxisLabels="@GetLabels()"
+                          Series="@(
+                                        new ChartSeries[] {
+                                            new() { Name = "Requests/s", Data = GetData(rpsSamples) }
+                                        })" />
+            }
         </MetricBlock>
         <MetricBlock Id="ua" X="3" Y="0" Width="3" Height="2">
-            <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@GetLabels()"
-                      Series="@(
-                                    new ChartSeries[] {
-                                        new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
-                                    })" />
+            @if (HasData(uaEntropySamples))
+            {
+                <MudChart ChartType="ChartType.Line"
+                          XAxisLabels="@GetLabels()"
+                          Series="@(
+                                        new ChartSeries[] {
+                                            new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
+                                        })" />
+            }
         </MetricBlock>
         <MetricBlock Id="schema" X="6" Y="0" Width="3" Height="2">
-
-                                                <MudChart ChartType="ChartType.Line"
-                                                          XAxisLabels="@GetLabels()"
-                                                          Series="@(
-                                    new ChartSeries[] {
-                                        new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
-                                    })" />
+            @if (HasData(schemaErrorSamples))
+            {
+                <MudChart ChartType="ChartType.Line"
+                          XAxisLabels="@GetLabels()"
+                          Series="@(
+                                        new ChartSeries[] {
+                                            new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
+                                        })" />
+            }
         </MetricBlock>
         <MetricBlock Id="waf" X="9" Y="0" Width="3" Height="2">
-            <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@GetLabels()"
-                      Series="@(
-                                    new ChartSeries[] {
-                                        new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
-                                    })" />
+            @if (HasData(wafBlockSamples))
+            {
+                <MudChart ChartType="ChartType.Line"
+                          XAxisLabels="@GetLabels()"
+                          Series="@(
+                                        new ChartSeries[] {
+                                            new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
+                                        })" />
+            }
         </MetricBlock>
     </div>
 </MudStack>
@@ -113,10 +124,13 @@
     }
 
     private string[] GetLabels()
-        => labels.Count > 0 ? labels.ToArray() : new[] { "0" };
+        => labels.Count > 0 ? labels.ToArray() : Array.Empty<string>();
 
     private static double[] GetData(List<double> samples)
-        => samples.Count > 0 ? samples.ToArray() : new double[] { 0 };
+        => samples.Count > 0 ? samples.ToArray() : Array.Empty<double>();
+
+    private static bool HasData(List<double> samples)
+        => samples.Count > 0;
 
     private async Task ResetLayout()
     {
