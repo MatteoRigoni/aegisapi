@@ -1,0 +1,9 @@
+.wow-card {
+    background: linear-gradient(135deg, #1e88e5, #42a5f5);
+    color: white;
+    transition: transform 0.3s;
+}
+
+.wow-card:hover {
+    transform: scale(1.05);
+}

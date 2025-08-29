@@ -2,20 +2,50 @@
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
 
-<MudCard Class="pa-4 ma-4" Elevation="4">
-    <MudText Typo="Typo.h5" Class="mb-2" Bold="true">Live Metrics</MudText>
-    <MudDivider Class="mb-2" />
-    <MudText Typo="Typo.h6">CPU Usage: @cpu.ToString("F1")%</MudText>
-    <MudText Typo="Typo.h6">Memory Usage: @memory.ToString("F0") MB</MudText>
-    <MudText Typo="Typo.h6">Active Users: @activeUsers</MudText>
-    <MudText Typo="Typo.h6">Error Rate: @errorRate.ToString("F2")%</MudText>
-</MudCard>
+<MudGrid Class="pa-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Requests/s</MudText>
+                <MudText Typo="Typo.h4">@rps.ToString("F1")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.DeviceUnknown" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">UA Entropy</MudText>
+                <MudText Typo="Typo.h4">@uaEntropy.ToString("F2")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Rule" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Schema Errors</MudText>
+                <MudText Typo="Typo.h4">@schemaErrors</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">WAF Blocks</MudText>
+                <MudText Typo="Typo.h4">@wafBlocks</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
 
 @code {
-    private double cpu;
-    private double memory;
-    private int activeUsers;
-    private double errorRate;
+    private double rps;
+    private double uaEntropy;
+    private int schemaErrors;
+    private int wafBlocks;
     private CancellationTokenSource? cts;
 
     protected override async Task OnInitializedAsync()
@@ -33,10 +63,10 @@
 
     private Task OnMetric(MetricDto m)
     {
-        cpu = m.Cpu;
-        memory = m.Memory;
-        activeUsers = m.ActiveUsers;
-        errorRate = m.ErrorRate;
+        rps = m.Rps;
+        uaEntropy = m.UaEntropy;
+        schemaErrors = m.SchemaErrors;
+        wafBlocks = m.WafBlocks;
         InvokeAsync(StateHasChanged);
         return Task.CompletedTask;
     }
