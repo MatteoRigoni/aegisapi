@@ -1,0 +1,38 @@
+@inherits LayoutComponentBase
+@using MudBlazor
+
+<div tabindex="0" @onkeydown="HandleKey">
+    <MudThemeProvider IsDarkMode="true">
+        <MudSnackbarProvider>
+            <MudLayout>
+                <MudAppBar Color="Color.Primary">Aegis Dashboard</MudAppBar>
+                <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
+                    <NavMenu />
+                </MudDrawer>
+                <MudMainContent>
+                    @Body
+                </MudMainContent>
+            </MudLayout>
+        </MudSnackbarProvider>
+    </MudThemeProvider>
+</div>
+
+@code {
+    [Inject] NavigationManager Nav { get; set; } = default!;
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        switch (e.Key.ToLowerInvariant())
+        {
+            case "d":
+                Nav.NavigateTo("/");
+                break;
+            case "i":
+                Nav.NavigateTo("/incidents");
+                break;
+            case "p":
+                Nav.NavigateTo("/policies");
+                break;
+        }
+    }
+}

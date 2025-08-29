@@ -1,0 +1,63 @@
+@page "/policies"
+@inject IControlPlaneService ControlService
+@inject ISnackbar Snackbar
+
+<MudTextField @bind-Value="policy" Label="Policy JSON" Lines="15" Class="ma-2" />
+<MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
+<MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
+<MudButton OnClick="Save" Color="Color.Success">Save</MudButton>
+
+@code {
+    private string policy = "{}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            policy = await ControlService.LoadPolicyAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private void Validate()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(policy);
+            Snackbar.Add("Policy valid", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Invalid JSON", Severity.Error);
+        }
+    }
+
+    private void Format()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(policy);
+            policy = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            Snackbar.Add("Invalid JSON", Severity.Error);
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            await ControlService.SavePolicyAsync(policy);
+            Snackbar.Add("Policy saved", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+}

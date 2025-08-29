@@ -1,0 +1,56 @@
+@page "/incidents/{id}"
+@inject IIncidentService IncidentService
+@inject IControlPlaneService ControlService
+@inject ISnackbar Snackbar
+
+<h3>Incident Detail</h3>
+
+@if (incident is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <MudCard Class="pa-4">
+        <MudText Typo="Typo.h5">@incident.Title</MudText>
+        <MudText>@incident.Summary</MudText>
+        <MudText>Status: @incident.Status</MudText>
+        <MudButton Color="Color.Primary" OnClick="ApplyFix" Disabled="loading">Apply Fix</MudButton>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public string id { get; set; } = string.Empty;
+    private Incident? incident;
+    private bool loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            incident = await IncidentService.GetIncidentAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task ApplyFix()
+    {
+        loading = true;
+        try
+        {
+            await ControlService.ApplyFixAsync(id);
+            Snackbar.Add("Fix applied", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

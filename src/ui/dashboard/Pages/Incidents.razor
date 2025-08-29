@@ -1,0 +1,36 @@
+@page "/incidents"
+@inject IIncidentService IncidentService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudTable Items="incidents" Hover="true" Dense="true" OnRowClick="OnRowClick">
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Title</MudTh>
+        <MudTh>Status</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Title">@context.Title</MudTd>
+        <MudTd DataLabel="Status">@context.Status</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IReadOnlyList<Incident> incidents = Array.Empty<Incident>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            incidents = await IncidentService.GetIncidentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<Incident> e)
+        => Nav.NavigateTo($"/incidents/{e.Item.Id}");
+}
