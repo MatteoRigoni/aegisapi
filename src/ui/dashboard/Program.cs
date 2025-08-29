@@ -23,6 +23,7 @@ if (useMocks)
     builder.Services.AddScoped<IIncidentService, MockIncidentService>();
     builder.Services.AddScoped<IControlPlaneService, MockControlPlaneService>();
     builder.Services.AddScoped<ISummarizerService, MockSummarizerService>();
+    builder.Services.AddScoped<INetworkService, MockNetworkService>();
 }
 else
 {
@@ -46,10 +47,17 @@ else
         var opts = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;
         client.BaseAddress = new Uri(opts.Summarizer);
     });
+    builder.Services.AddHttpClient<RealNetworkService>((sp, client) =>
+    {
+        var opts = sp.GetRequiredService<IOptions<GatewayOptions>>().Value;
+        client.BaseAddress = new Uri(opts.Network);
+    });
+
     builder.Services.AddScoped<IMetricsService, RealMetricsService>();
     builder.Services.AddScoped<IIncidentService, RealIncidentService>();
     builder.Services.AddScoped<IControlPlaneService, RealControlPlaneService>();
     builder.Services.AddScoped<ISummarizerService, RealSummarizerService>();
+    builder.Services.AddScoped<INetworkService, RealNetworkService>();
 }
 
 var app = builder.Build();
