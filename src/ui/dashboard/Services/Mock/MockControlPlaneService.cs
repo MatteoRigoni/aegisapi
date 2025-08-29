@@ -20,4 +20,9 @@ public class MockControlPlaneService : IControlPlaneService
         _policy = policyJson;
         return Task.CompletedTask;
     }
+
+    public Task<string> SuggestPolicyPatchAsync(string policyJson)
+    {
+        return Task.FromResult(policyJson);
+    }
 }

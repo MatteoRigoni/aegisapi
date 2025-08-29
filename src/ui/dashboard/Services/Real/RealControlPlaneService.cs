@@ -13,4 +13,7 @@ public class RealControlPlaneService : IControlPlaneService
 
     public Task SavePolicyAsync(string policyJson)
         => throw new NotImplementedException("Coming soon");
+
+    public Task<string> SuggestPolicyPatchAsync(string policyJson)
+        => throw new NotImplementedException("Coming soon");
 }

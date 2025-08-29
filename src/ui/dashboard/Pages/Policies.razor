@@ -3,13 +3,20 @@
 @inject IControlPlaneService ControlService
 @inject ISnackbar Snackbar
 
-<MudTextField @bind-Value="policy" Label="Policy JSON" Lines="15" Class="ma-2" />
+<MonacoEditor @ref="editor" @bind-Value="policy" Options="editorOptions" Height="300px" Class="ma-2" />
 <MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
 <MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
 <MudButton OnClick="Save" Color="Color.Success">Save</MudButton>
+<MudButton OnClick="SuggestPatch" Color="Color.Info">Suggerisci patch</MudButton>
 
 @code {
+    private MonacoEditor? editor;
     private string policy = "{}";
+    private StandaloneEditorConstructionOptions editorOptions = new()
+    {
+        Language = "json",
+        AutomaticLayout = true
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -36,12 +43,15 @@
         }
     }
 
-    private void Format()
+    private async Task Format()
     {
         try
         {
-            using var doc = JsonDocument.Parse(policy);
-            policy = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+            if (editor is not null)
+            {
+                await editor.Trigger("keyboard", "editor.action.formatDocument", null);
+                policy = await editor.GetValue();
+            }
         }
         catch
         {
@@ -53,8 +63,24 @@
     {
         try
         {
+            if (editor is not null)
+                policy = await editor.GetValue();
             await ControlService.SavePolicyAsync(policy);
             Snackbar.Add("Policy saved", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task SuggestPatch()
+    {
+        try
+        {
+            if (editor is not null)
+                policy = await editor.GetValue();
+            policy = await ControlService.SuggestPolicyPatchAsync(policy);
         }
         catch (Exception ex)
         {
