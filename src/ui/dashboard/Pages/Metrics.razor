@@ -1,0 +1,80 @@
+@page "/metrics"
+@inject IMetricsService MetricsService
+@inject ISnackbar Snackbar
+
+<MudGrid Class="pa-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudChart ChartType="ChartType.Line"
+                  XAxisLabels="@labels.ToArray()"
+                  Series="@new[] { new ChartSeries { Name = "Requests/s", Data = rpsSamples.ToArray() } }" />
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudChart ChartType="ChartType.Line"
+                  XAxisLabels="@labels.ToArray()"
+                  Series="@new[] { new ChartSeries { Name = "UA Entropy", Data = uaEntropySamples.ToArray() } }" />
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudChart ChartType="ChartType.Line"
+                  XAxisLabels="@labels.ToArray()"
+                  Series="@new[] { new ChartSeries { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() } }" />
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudChart ChartType="ChartType.Line"
+                  XAxisLabels="@labels.ToArray()"
+                  Series="@new[] { new ChartSeries { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() } }" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    private readonly List<string> labels = new();
+    private readonly List<double> rpsSamples = new();
+    private readonly List<double> uaEntropySamples = new();
+    private readonly List<double> schemaErrorSamples = new();
+    private readonly List<double> wafBlockSamples = new();
+    private int sampleIndex;
+    private const int MaxSamples = 20;
+    private CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cts = new();
+        try
+        {
+            await MetricsService.StartMetricsAsync(OnMetric, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private Task OnMetric(MetricDto m)
+    {
+        labels.Add(sampleIndex.ToString());
+        rpsSamples.Add(m.Rps);
+        uaEntropySamples.Add(m.UaEntropy);
+        schemaErrorSamples.Add(m.SchemaErrors);
+        wafBlockSamples.Add(m.WafBlocks);
+        sampleIndex++;
+
+        Trim(labels);
+        Trim(rpsSamples);
+        Trim(uaEntropySamples);
+        Trim(schemaErrorSamples);
+        Trim(wafBlockSamples);
+
+        InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
+    }
+
+    private static void Trim<T>(List<T> list)
+    {
+        if (list.Count > MaxSamples)
+            list.RemoveAt(0);
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+    }
+}
