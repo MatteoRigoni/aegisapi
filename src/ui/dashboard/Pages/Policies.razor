@@ -1,16 +1,32 @@
 @page "/policies"
 @using System.Text.Json
+@using Dashboard.Services.Mock
 @inject IControlPlaneService ControlService
 @inject ISnackbar Snackbar
+
+<MudText Class="ma-2">
+    This page lets you view and edit the gateway policy. It loads and saves the policy
+    through the <code>IControlPlaneService</code>.
+    @if (ControlService is MockControlPlaneService)
+    {
+        <text>The mock service stores the policy in memory for demonstration.</text>
+    }
+    else
+    {
+        <text>Real control plane endpoints are not implemented yet.</text>
+    }
+</MudText>
 
 <MudTextField T="string"
               @bind-Value="policy"
               Lines="15"
-              Class="ma-2" />
+              Class="ma-2"
+              Variant="Variant.Outlined"
+              Style="font-family:monospace;" />
 <MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
 <MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
 <MudButton OnClick="Save" Color="Color.Success">Save</MudButton>
-<MudButton OnClick="SuggestPatch" Color="Color.Info">Suggerisci patch</MudButton>
+<MudButton OnClick="SuggestPatch" Color="Color.Info">Suggest patch</MudButton>
 
 @code {
     private string policy = "{}";

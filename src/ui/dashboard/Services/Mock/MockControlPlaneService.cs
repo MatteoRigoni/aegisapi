@@ -4,9 +4,19 @@ public class MockControlPlaneService : IControlPlaneService
 {
     private string _policy = """
 {
-  "rules": [
-    { "id": 1, "action": "allow", "condition": "user.role == 'admin'" },
-    { "id": 2, "action": "deny", "condition": "ip in blacklist" }
+  "routes": [
+    {
+      "id": "api",
+      "path": "/api/{**catchall}",
+      "destination": "https://backend/api",
+      "authorizationPolicy": "ApiReadOrKey"
+    }
+  ],
+  "rateLimits": [
+    { "plan": "free", "rpm": 60 }
+  ],
+  "waf": [
+    { "rule": "SqlInjection", "enabled": true }
   ]
 }
 """;
