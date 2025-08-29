@@ -2,50 +2,38 @@
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
 
-<MudGrid Class="pa-4">
-    <MudItem xs="12" sm="6" md="3">
-        <MudCard Class="wow-card pa-4">
-            <MudCardContent Class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Large" />
-                <MudText Typo="Typo.subtitle1">Requests/s</MudText>
-                <MudText Typo="Typo.h4">@rps.ToString("F1")</MudText>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudCard Class="wow-card pa-4">
-            <MudCardContent Class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.DeviceUnknown" Size="Size.Large" />
-                <MudText Typo="Typo.subtitle1">UA Entropy</MudText>
-                <MudText Typo="Typo.h4">@uaEntropy.ToString("F2")</MudText>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudCard Class="wow-card pa-4">
-            <MudCardContent Class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.Rule" Size="Size.Large" />
-                <MudText Typo="Typo.subtitle1">Schema Errors</MudText>
-                <MudText Typo="Typo.h4">@schemaErrors</MudText>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudCard Class="wow-card pa-4">
-            <MudCardContent Class="text-center">
-                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" />
-                <MudText Typo="Typo.subtitle1">WAF Blocks</MudText>
-                <MudText Typo="Typo.h4">@wafBlocks</MudText>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-</MudGrid>
+<MudPaper Class="pa-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResetLayout">Reset layout</MudButton>
+    <div class="grid-stack mt-4">
+        <div class="grid-stack-item" id="rps" gs-x="0" gs-y="0" gs-w="3" gs-h="2">
+            <div class="grid-stack-item-content">
+                <MetricCard Icon="@Icons.Material.Filled.Speed" Title="Requests/s" Value="@rps.ToString("F1")" />
+            </div>
+        </div>
+        <div class="grid-stack-item" id="ua" gs-x="3" gs-y="0" gs-w="3" gs-h="2">
+            <div class="grid-stack-item-content">
+                <MetricCard Icon="@Icons.Material.Filled.DeviceUnknown" Title="UA Entropy" Value="@uaEntropy.ToString("F2")" />
+            </div>
+        </div>
+        <div class="grid-stack-item" id="schema" gs-x="6" gs-y="0" gs-w="3" gs-h="2">
+            <div class="grid-stack-item-content">
+                <MetricCard Icon="@Icons.Material.Filled.Rule" Title="Schema Errors" Value="@schemaErrors.ToString()" />
+            </div>
+        </div>
+        <div class="grid-stack-item" id="waf" gs-x="9" gs-y="0" gs-w="3" gs-h="2">
+            <div class="grid-stack-item-content">
+                <MetricCard Icon="@Icons.Material.Filled.Shield" Title="WAF Blocks" Value="@wafBlocks.ToString()" />
+            </div>
+        </div>
+    </div>
+</MudPaper>
 
 @code {
     private double rps;
     private double uaEntropy;
     private int schemaErrors;
     private int wafBlocks;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
     private CancellationTokenSource? cts;
 
     protected override async Task OnInitializedAsync()
@@ -69,6 +57,19 @@
         wafBlocks = m.WafBlocks;
         InvokeAsync(StateHasChanged);
         return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("dashboardLayout.init");
+        }
+    }
+
+    private async Task ResetLayout()
+    {
+        await JS.InvokeVoidAsync("dashboardLayout.reset");
     }
 
     public void Dispose()

@@ -1,0 +1,13 @@
+<MudCard Class="wow-card pa-4">
+    <MudCardContent Class="text-center">
+        <MudIcon Icon="@Icon" Size="Size.Large" />
+        <MudText Typo="Typo.subtitle1">@Title</MudText>
+        <MudText Typo="Typo.h4">@Value</MudText>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public string Icon { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+}
