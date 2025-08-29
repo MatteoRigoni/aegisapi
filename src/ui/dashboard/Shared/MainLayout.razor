@@ -2,15 +2,18 @@
 @using MudBlazor
 @using Microsoft.Extensions.Configuration
 
-<MudThemeProvider IsDarkMode="true" />
+@inject MudThemeManager ThemeManager
+
+<MudThemeProvider Theme="@ThemeManager.CurrentTheme" IsDarkMode="@ThemeManager.IsDarkMode" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <div tabindex="0" @onkeydown="HandleKey">
     <MudLayout>
         <MudAppBar Color="Color.Primary">
-            Aegis Dashboard
+            <span class="neon-title">Aegis Dashboard</span>
             <MudSpacer />
+            <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
         </MudAppBar>
         <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
@@ -31,6 +34,21 @@
     [Inject] IConfiguration Configuration { get; set; } = default!;
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeManager.InitializeAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeManager.ToggleThemeAsync();
+        StateHasChanged();
+    }
 
     private void HandleKey(KeyboardEventArgs e)
     {

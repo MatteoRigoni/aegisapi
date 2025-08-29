@@ -12,6 +12,7 @@ builder.Services.AddMudServices();
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<Dashboard.Services.MudThemeManager>();
 
 builder.Services.Configure<GatewayOptions>(builder.Configuration.GetSection("GatewayUrls"));
 var useMocks = builder.Configuration.GetValue<bool>("UseMocks");
