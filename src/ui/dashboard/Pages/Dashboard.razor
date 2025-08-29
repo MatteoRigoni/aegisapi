@@ -4,34 +4,48 @@
 
 <MudGrid Class="pa-4">
     <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line" Options="@chartOptions"
-                  Labels="@Enumerable.Range(0, rpsSamples.Count).Select(i => i.ToString()).ToArray()"
-                  Datasets="@new ChartSeries[] { new() { Name = "Requests/s", Data = rpsSamples.ToArray() } }" />
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Requests/s</MudText>
+                <MudText Typo="Typo.h4">@rps.ToString("F1")</MudText>
+            </MudCardContent>
+        </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line" Options="@chartOptions"
-                  Labels="@Enumerable.Range(0, uaEntropySamples.Count).Select(i => i.ToString()).ToArray()"
-                  Datasets="@new ChartSeries[] { new() { Name = "UA Entropy", Data = uaEntropySamples.ToArray() } }" />
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.DeviceUnknown" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">UA Entropy</MudText>
+                <MudText Typo="Typo.h4">@uaEntropy.ToString("F2")</MudText>
+            </MudCardContent>
+        </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line" Options="@chartOptions"
-                  Labels="@Enumerable.Range(0, schemaErrorSamples.Count).Select(i => i.ToString()).ToArray()"
-                  Datasets="@new ChartSeries[] { new() { Name = "Schema Errors", Data = schemaErrorSamples.Select(v => (double)v).ToArray() } }" />
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Rule" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Schema Errors</MudText>
+                <MudText Typo="Typo.h4">@schemaErrors</MudText>
+            </MudCardContent>
+        </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
-        <MudChart ChartType="ChartType.Line" Options="@chartOptions"
-                  Labels="@Enumerable.Range(0, wafBlockSamples.Count).Select(i => i.ToString()).ToArray()"
-                  Datasets="@new ChartSeries[] { new() { Name = "WAF Blocks", Data = wafBlockSamples.Select(v => (double)v).ToArray() } }" />
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">WAF Blocks</MudText>
+                <MudText Typo="Typo.h4">@wafBlocks</MudText>
+            </MudCardContent>
+        </MudCard>
     </MudItem>
 </MudGrid>
 
 @code {
-    private const int MaxSamples = 50;
-    private readonly List<double> rpsSamples = new();
-    private readonly List<double> uaEntropySamples = new();
-    private readonly List<int> schemaErrorSamples = new();
-    private readonly List<int> wafBlockSamples = new();
-    private readonly ChartOptions chartOptions = new() { TransitionDuration = TimeSpan.FromMilliseconds(300) };
+    private double rps;
+    private double uaEntropy;
+    private int schemaErrors;
+    private int wafBlocks;
     private CancellationTokenSource? cts;
 
     protected override async Task OnInitializedAsync()
@@ -49,19 +63,12 @@
 
     private Task OnMetric(MetricDto m)
     {
-        AddSample(rpsSamples, m.Rps);
-        AddSample(uaEntropySamples, m.UaEntropy);
-        AddSample(schemaErrorSamples, m.SchemaErrors);
-        AddSample(wafBlockSamples, m.WafBlocks);
+        rps = m.Rps;
+        uaEntropy = m.UaEntropy;
+        schemaErrors = m.SchemaErrors;
+        wafBlocks = m.WafBlocks;
         InvokeAsync(StateHasChanged);
         return Task.CompletedTask;
-    }
-
-    private static void AddSample<T>(List<T> list, T value)
-    {
-        list.Add(value);
-        if (list.Count > MaxSamples)
-            list.RemoveAt(0);
     }
 
     public void Dispose()
