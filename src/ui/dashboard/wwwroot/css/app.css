@@ -95,6 +95,7 @@ html {
 /* Ensure the main content respects the drawer's width */
 .mud-main-content {
     margin-left: 0;
+    margin-top: var(--mud-appbar-height);
     transition: margin-left 0.3s ease;
 }
 
