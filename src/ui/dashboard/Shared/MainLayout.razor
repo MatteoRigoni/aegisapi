@@ -11,7 +11,7 @@
 <div tabindex="0" @onkeydown="HandleKey" @onkeydown:preventDefault="true" @onkeydown:stopPropagation="true">
     <MudLayout>
         <MudAppBar Color="Color.Primary">
-            <span class="neon-title">Aegis Dashboard</span>
+            <span class="cursive-title">Aegis Dashboard</span>
             <MudSpacer />
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
@@ -19,7 +19,7 @@
         <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
             <NavMenu />
         </MudDrawer>
-        <MudMainContent Class="wow-bg">
+        <MudMainContent Class="app-background">
             @Body
         </MudMainContent>
     </MudLayout>

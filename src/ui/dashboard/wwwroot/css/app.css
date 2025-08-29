@@ -1,7 +1,12 @@
+
+/* Use theme colors so the card adapts to light and dark modes */
 .wow-card {
-    background: linear-gradient(135deg, #1e88e5, #42a5f5, #5e35b1);
+    background: linear-gradient(135deg,
+            var(--mud-palette-primary),
+            var(--mud-palette-secondary),
+            var(--mud-palette-info));
     background-size: 300% 300%;
-    color: white;
+    color: var(--mud-palette-text-primary);
     transition: transform 0.3s, box-shadow 0.3s;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     animation: gradientShift 6s ease infinite;
@@ -12,8 +17,11 @@
     box-shadow: 0 8px 25px rgba(0,0,0,0.4);
 }
 
-.wow-bg {
-    background: radial-gradient(circle at top left, #0d47a1, #1b1b1b);
+
+/* Background that responds to the current theme */
+.app-background {
+    background-color: var(--mud-palette-background);
+    color: var(--mud-palette-text-primary);
     min-height: 100vh;
 }
 
@@ -36,14 +44,11 @@
     z-index: 1000;
 }
 
-.neon-title {
-    font-weight: bold;
-    color: #39ff14;
-    text-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14, 0 0 20px #39ff14, 0 0 40px #39ff14;
-    animation: neon-flicker 1.5s infinite alternate;
+
+/* Elegant cursive title without flickering */
+.cursive-title {
+    font-family: "Brush Script MT", cursive;
+    font-style: italic;
+    color: var(--mud-palette-primary);
 }
 
-@keyframes neon-flicker {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-}
