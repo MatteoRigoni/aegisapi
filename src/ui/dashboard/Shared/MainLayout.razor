@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @using MudBlazor
+@using Microsoft.Extensions.Configuration
 
 <MudThemeProvider IsDarkMode="true" />
 <MudDialogProvider />
@@ -19,10 +20,17 @@
             @Body
         </MudMainContent>
     </MudLayout>
+    @if (UseMocks)
+    {
+        <div class="mock-banner">MOCK MODE</div>
+    }
 </div>
 
 @code {
     [Inject] NavigationManager Nav { get; set; } = default!;
+    [Inject] IConfiguration Configuration { get; set; } = default!;
+
+    private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
 
     private void HandleKey(KeyboardEventArgs e)
     {
