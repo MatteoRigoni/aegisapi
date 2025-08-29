@@ -1,6 +1,7 @@
 @page "/incidents/{id}"
 @inject IIncidentService IncidentService
 @inject IControlPlaneService ControlService
+@inject ISummarizerService SummarizerService
 @inject ISnackbar Snackbar
 
 <h3>Incident Detail</h3>
@@ -17,11 +18,27 @@ else
         <MudText>Status: @incident.Status</MudText>
         <MudButton Color="Color.Primary" OnClick="ApplyFix" Disabled="loading">Apply Fix</MudButton>
     </MudCard>
+
+    @if (summary is not null)
+    {
+        <MudCard Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">AI Insights</MudText>
+            <MudAlert Severity="Severity.Info">
+                <div>@summary.Summary</div>
+                @if (summary.SuggestedPolicyPatch is not null)
+                {
+                    <div>Patch: @summary.SuggestedPolicyPatch.Rule</div>
+                }
+                <div>Confidence: @summary.Confidence.ToString("P0")</div>
+            </MudAlert>
+        </MudCard>
+    }
 }
 
 @code {
     [Parameter] public string id { get; set; } = string.Empty;
     private Incident? incident;
+    private SummaryResponse? summary;
     private bool loading;
 
     protected override async Task OnInitializedAsync()
@@ -29,6 +46,15 @@ else
         try
         {
             incident = await IncidentService.GetIncidentAsync(id);
+            var bundle = new IncidentBundle(
+                "dev",
+                "UI",
+                incident.Title,
+                Array.Empty<FeatureEventLite>(),
+                new Dictionary<string,double>(),
+                new Dictionary<string,int>(),
+                null);
+            summary = await SummarizerService.SummarizeAsync(bundle);
         }
         catch (Exception ex)
         {
