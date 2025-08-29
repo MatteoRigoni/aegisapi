@@ -20,7 +20,7 @@
             <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
         </MudAppBar>
         <MudDrawerContainer>
-            <MudDrawer @bind-Open="isNavMenuOpen" ClipMode="DrawerClipMode.Never" Variant="DrawerVariant.Responsive" MiniVariant="DrawerVariant.Mini" Breakpoint="Breakpoint.Md">
+            <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
                 <NavMenu />
             </MudDrawer>
             <MudMainContent Class="app-background mud-main-content">
