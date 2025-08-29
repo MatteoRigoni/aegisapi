@@ -7,11 +7,15 @@
 
 <div tabindex="0" @onkeydown="HandleKey">
     <MudLayout>
-        <MudAppBar Color="Color.Primary">Aegis Dashboard - Alpha Version</MudAppBar>
+        <MudAppBar Color="Color.Primary">
+            Aegis Dashboard
+            <MudSpacer />
+            <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
+        </MudAppBar>
         <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
             <NavMenu />
         </MudDrawer>
-        <MudMainContent>
+        <MudMainContent Class="wow-bg">
             @Body
         </MudMainContent>
     </MudLayout>

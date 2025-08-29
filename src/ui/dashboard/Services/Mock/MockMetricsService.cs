@@ -16,13 +16,9 @@ public class MockMetricsService : IMetricsService
             .WithAutomaticReconnect()
             .Build();
 
-        connection.On<MetricDto>("metrics", async m => await handler(new MetricDto(
-            m.Rps,
-            m.UaEntropy,
-            new Random().Next(0, 20), // Simulated schema errors
-            new Random().Next(0, 10)  // Simulated WAF blocks
-        )));
+ connection.On<MetricDto>("metrics", handler);
 
         await connection.StartAsync(token);
+        _ = connection.SendAsync("SendMetrics", cancellationToken: token);
     }
 }

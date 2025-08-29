@@ -9,7 +9,8 @@ public class MetricsHub : Hub
 
     public async Task SendMetrics()
     {
-        while (true)
+        var token = Context.ConnectionAborted;
+        while (!token.IsCancellationRequested)
         {
             var metric = new MetricDto(
                 rnd.NextDouble() * 100, // Requests per second
@@ -18,8 +19,8 @@ public class MetricsHub : Hub
                 rnd.Next(0, 10)         // WAF blocks
             );
 
-            await Clients.All.SendAsync("metrics", metric);
-            await Task.Delay(1000);
+            await Clients.Caller.SendAsync("metrics", metric, token);
+            await Task.Delay(1000, token);
         }
     }
 }
