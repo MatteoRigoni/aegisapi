@@ -1,5 +1,3 @@
-import { GridStack } from 'https://cdn.jsdelivr.net/npm/gridstack@9.3.0/dist/gridstack-h5.js';
-
 let grid;
 let defaultLayout;
 
