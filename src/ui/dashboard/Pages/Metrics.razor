@@ -4,6 +4,7 @@
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <MudStack Class="pa-4" Spacing="2">
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetLayout">Reset layout</MudButton>
@@ -54,6 +55,7 @@
     private int sampleIndex;
     private const int MaxSamples = 20;
     private CancellationTokenSource? cts;
+    private IJSObjectReference? module;
 
     private readonly GridItem[] defaultLayout = new[]
     {
@@ -80,14 +82,8 @@
     {
         if (firstRender)
         {
-            try
-            {
-                await JS.InvokeVoidAsync("metricLayout.init", defaultLayout);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Error initializing layout: {ex.Message}", Severity.Error);
-            }
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/metrics-layout.js");
+            await module.InvokeVoidAsync("init", defaultLayout);
         }
     }
 
@@ -118,12 +114,19 @@
 
     private async Task ResetLayout()
     {
-        await JS.InvokeVoidAsync("metricLayout.reset");
+        if (module != null)
+        {
+            await module.InvokeVoidAsync("reset");
+        }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         cts?.Cancel();
+        if (module != null)
+        {
+            await module.DisposeAsync();
+        }
     }
 
     class GridItem
