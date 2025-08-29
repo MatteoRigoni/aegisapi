@@ -1,22 +1,10 @@
+import { GridStack } from 'https://cdn.jsdelivr.net/npm/gridstack@4.2.5/dist/gridstack-h5.js';
+
 let grid;
 let defaultLayout;
 
-async function ensureGridStack() {
-  if (window.GridStack) return;
-
-  await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/4.2.5/gridstack.all.min.js';
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('failed to load GridStack'));
-    document.head.appendChild(script);
-  });
-}
-
 export async function init(layout) {
-  await ensureGridStack();
-
-  const GridStackLib = window.GridStack;
+  const GridStackLib = GridStack;
   if (!GridStackLib) {
     console.error('GridStack library is missing');
     return;
