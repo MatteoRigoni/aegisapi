@@ -4,54 +4,56 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudStack Direction="Row" Spacing="2" Class="mb-4">
-    <MudTextField T="string"
-                  @bind-Value="searchString"
-                  Placeholder="Search"
-                  Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Filled.Search" />
+<MudStack Direction="Column" Class="page-padding">
+    <MudStack Direction="Row" Spacing="2" Class="mb-4">
+        <MudTextField T="string"
+                      @bind-Value="searchString"
+                      Placeholder="Search"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" />
 
-    <MudSelect T="string" @bind-Value="statusFilter" Placeholder="Status" Clearable="true">
-        <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
-        @foreach (var s in StatusOptions)
-        {
-            <MudSelectItem T="string" Value="@s">@s</MudSelectItem>
-        }
-    </MudSelect>
+        <MudSelect T="string" @bind-Value="statusFilter" Placeholder="Status" Clearable="true">
+            <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
+            @foreach (var s in StatusOptions)
+            {
+                <MudSelectItem T="string" Value="@s">@s</MudSelectItem>
+            }
+        </MudSelect>
 
-    <MudSelect T="string" @bind-Value="severityFilter" Placeholder="Severity" Clearable="true">
-        <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
-        @foreach (var sev in SeverityOptions)
-        {
-            <MudSelectItem T="string" Value="@sev">@sev</MudSelectItem>
-        }
-    </MudSelect>
+        <MudSelect T="string" @bind-Value="severityFilter" Placeholder="Severity" Clearable="true">
+            <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
+            @foreach (var sev in SeverityOptions)
+            {
+                <MudSelectItem T="string" Value="@sev">@sev</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+
+    <MudTable Items="FilteredIncidents" Hover="true" Dense="true" RowClick="OnRowClick">
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Title</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Severity</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">
+                <MudTooltip Text="@context.Summary">@context.Id</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Title">
+                <MudTooltip Text="@context.Summary">@context.Title</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Status">
+                <MudTooltip Text="@context.Summary">@context.Status</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Severity">
+                <MudTooltip Text="@context.Summary">
+                    <MudChip Color="@GetSeverityColor(context.Severity)" Variant="Variant.Filled">@context.Severity</MudChip>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 </MudStack>
-
-<MudTable Items="FilteredIncidents" Hover="true" Dense="true" RowClick="OnRowClick">
-    <HeaderContent>
-        <MudTh>Id</MudTh>
-        <MudTh>Title</MudTh>
-        <MudTh>Status</MudTh>
-        <MudTh>Severity</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Id">
-            <MudTooltip Text="@context.Summary">@context.Id</MudTooltip>
-        </MudTd>
-        <MudTd DataLabel="Title">
-            <MudTooltip Text="@context.Summary">@context.Title</MudTooltip>
-        </MudTd>
-        <MudTd DataLabel="Status">
-            <MudTooltip Text="@context.Summary">@context.Status</MudTooltip>
-        </MudTd>
-        <MudTd DataLabel="Severity">
-            <MudTooltip Text="@context.Summary">
-                <MudChip Color="@GetSeverityColor(context.Severity)" Variant="Variant.Filled">@context.Severity</MudChip>
-            </MudTooltip>
-        </MudTd>
-    </RowTemplate>
-</MudTable>
 
 @code {
     private IReadOnlyList<Incident> incidents = Array.Empty<Incident>();

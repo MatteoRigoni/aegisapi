@@ -95,7 +95,7 @@ html {
 /* Ensure the main content respects the drawer's width */
 .mud-main-content {
     margin-left: 0;
-    margin-top: var(--mud-appbar-height);
+    margin-top: 20px;
     transition: margin-left 0.3s ease;
 }
 
@@ -107,4 +107,8 @@ html {
     .mud-drawer-open + .mud-main-content {
         margin-left: 0; /* Reset for smaller screens */
     }
+}
+
+.page-padding {
+    padding: 16px; /* Adds light padding around the page content */
 }
