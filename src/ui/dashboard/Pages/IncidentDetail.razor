@@ -1,5 +1,6 @@
 @page "/incidents/{id}"
-@using Dashboard.Services
+@using Microsoft.JSInterop
+@using Services
 @inject IIncidentsService IncidentService
 @inject IControlPlaneService Control
 @inject IJSRuntime JS

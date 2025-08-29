@@ -1,6 +1,6 @@
 @page "/policies"
-@using Dashboard.Services
-@inject IPolicyService Policies
+@using Services
+@inject IPolicyService Policiess
 @using System.Text.Json
 
 <h1>Policies</h1>
@@ -16,7 +16,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        policy = await Policies.GetPolicyAsync();
+        policy = await Policiess.GetPolicyAsync();
     }
 
     private void Validate()
@@ -35,7 +35,7 @@
 
     private async Task Save()
     {
-        await Policies.SavePolicyAsync(policy);
+        await Policiess.SavePolicyAsync(policy);
         message = "Saved";
     }
 }
