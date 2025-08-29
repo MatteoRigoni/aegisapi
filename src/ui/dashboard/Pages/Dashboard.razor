@@ -2,18 +2,20 @@
 @inject IMetricsService MetricsService
 @inject ISnackbar Snackbar
 
-<h3>Live Metrics</h3>
-
-<MudPaper Class="pa-4">
-    <MudText Typo="Typo.h6">CPU: @cpu.ToString("F1")%</MudText>
-    <MudText Typo="Typo.h6">Memory: @memory.ToString("F0") MB</MudText>
-    <MudText Typo="Typo.h6">Requests: @requests</MudText>
-</MudPaper>
+<MudCard Class="pa-4 ma-4" Elevation="4">
+    <MudText Typo="Typo.h5" Class="mb-2" Bold="true">Live Metrics</MudText>
+    <MudDivider Class="mb-2" />
+    <MudText Typo="Typo.h6">CPU Usage: @cpu.ToString("F1")%</MudText>
+    <MudText Typo="Typo.h6">Memory Usage: @memory.ToString("F0") MB</MudText>
+    <MudText Typo="Typo.h6">Active Users: @activeUsers</MudText>
+    <MudText Typo="Typo.h6">Error Rate: @errorRate.ToString("F2")%</MudText>
+</MudCard>
 
 @code {
     private double cpu;
     private double memory;
-    private int requests;
+    private int activeUsers;
+    private double errorRate;
     private CancellationTokenSource? cts;
 
     protected override async Task OnInitializedAsync()
@@ -33,7 +35,8 @@
     {
         cpu = m.Cpu;
         memory = m.Memory;
-        requests = m.Requests;
+        activeUsers = m.ActiveUsers;
+        errorRate = m.ErrorRate;
         InvokeAsync(StateHasChanged);
         return Task.CompletedTask;
     }

@@ -5,19 +5,20 @@ namespace Dashboard.Hubs;
 
 public class MetricsHub : Hub
 {
-    public override Task OnConnectedAsync()
-    {
-        _ = SendLoop(Context.ConnectionId);
-        return base.OnConnectedAsync();
-    }
+    private static readonly Random rnd = new();
 
-    private async Task SendLoop(string connectionId)
+    public async Task SendMetrics()
     {
-        var rnd = new Random();
         while (true)
         {
-            var metric = new MetricDto(rnd.NextDouble() * 100, rnd.Next(0, 32000), rnd.Next(0, 1000));
-            await Clients.Client(connectionId).SendAsync("metrics", metric);
+            var metric = new MetricDto(
+                rnd.NextDouble() * 100, // CPU Usage
+                rnd.Next(0, 32000),    // Memory Usage
+                rnd.Next(50, 500),     // Active Users
+                rnd.NextDouble() * 5   // Error Rate
+            );
+
+            await Clients.All.SendAsync("metrics", metric);
             await Task.Delay(1000);
         }
     }

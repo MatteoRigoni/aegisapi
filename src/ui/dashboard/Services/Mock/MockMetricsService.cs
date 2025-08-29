@@ -16,7 +16,13 @@ public class MockMetricsService : IMetricsService
             .WithAutomaticReconnect()
             .Build();
 
-        connection.On<MetricDto>("metrics", async m => await handler(m));
+        connection.On<MetricDto>("metrics", async m => await handler(new MetricDto(
+            m.Cpu,
+            m.Memory,
+            new Random().Next(50, 500), // Simulated Active Users
+            new Random().NextDouble() * 5 // Simulated Error Rate
+        )));
+
         await connection.StartAsync(token);
     }
 }

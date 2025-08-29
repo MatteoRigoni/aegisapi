@@ -18,9 +18,9 @@ var useMocks = builder.Configuration.GetValue<bool>("UseMocks");
 
 if (useMocks)
 {
-    builder.Services.AddSingleton<IMetricsService, MockMetricsService>();
-    builder.Services.AddSingleton<IIncidentService, MockIncidentService>();
-    builder.Services.AddSingleton<IControlPlaneService, MockControlPlaneService>();
+    builder.Services.AddScoped<IMetricsService, MockMetricsService>();
+    builder.Services.AddScoped<IIncidentService, MockIncidentService>();
+    builder.Services.AddScoped<IControlPlaneService, MockControlPlaneService>();
 }
 else
 {

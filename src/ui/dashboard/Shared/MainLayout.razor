@@ -1,20 +1,20 @@
 @inherits LayoutComponentBase
 @using MudBlazor
 
+<MudThemeProvider IsDarkMode="true" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 <div tabindex="0" @onkeydown="HandleKey">
-    <MudThemeProvider IsDarkMode="true">
-        <MudSnackbarProvider>
-            <MudLayout>
-                <MudAppBar Color="Color.Primary">Aegis Dashboard</MudAppBar>
-                <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
-                    <NavMenu />
-                </MudDrawer>
-                <MudMainContent>
-                    @Body
-                </MudMainContent>
-            </MudLayout>
-        </MudSnackbarProvider>
-    </MudThemeProvider>
+    <MudLayout>
+        <MudAppBar Color="Color.Primary">Aegis Dashboard - Alpha Version</MudAppBar>
+        <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Mini">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent>
+            @Body
+        </MudMainContent>
+    </MudLayout>
 </div>
 
 @code {
