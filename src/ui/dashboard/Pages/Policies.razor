@@ -3,10 +3,9 @@
 @inject IControlPlaneService ControlService
 @inject ISnackbar Snackbar
 
-<MonacoEditor @ref="editor"
+<MudTextField T="string"
               @bind-Value="policy"
-              ConstructionOptions="@(e => new StandaloneEditorConstructionOptions { Language = "json", AutomaticLayout = true })"
-              Height="300px"
+              Lines="15"
               Class="ma-2" />
 <MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
 <MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
@@ -14,13 +13,7 @@
 <MudButton OnClick="SuggestPatch" Color="Color.Info">Suggerisci patch</MudButton>
 
 @code {
-    private MonacoEditor? editor;
     private string policy = "{}";
-    private StandaloneEditorConstructionOptions editorOptions = new()
-    {
-        Language = "json",
-        AutomaticLayout = true
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -47,15 +40,12 @@
         }
     }
 
-    private async Task Format()
+    private void Format()
     {
         try
         {
-            if (editor is not null)
-            {
-                await editor.Trigger("keyboard", "editor.action.formatDocument", default(JsonElement));
-                policy = await editor.GetValue();
-            }
+            var element = JsonSerializer.Deserialize<JsonElement>(policy);
+            policy = JsonSerializer.Serialize(element, new JsonSerializerOptions { WriteIndented = true });
         }
         catch
         {
@@ -67,8 +57,6 @@
     {
         try
         {
-            if (editor is not null)
-                policy = await editor.GetValue();
             await ControlService.SavePolicyAsync(policy);
             Snackbar.Add("Policy saved", Severity.Success);
         }
@@ -82,8 +70,6 @@
     {
         try
         {
-            if (editor is not null)
-                policy = await editor.GetValue();
             policy = await ControlService.SuggestPolicyPatchAsync(policy);
         }
         catch (Exception ex)
