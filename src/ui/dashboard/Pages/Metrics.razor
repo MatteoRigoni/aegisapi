@@ -11,35 +11,35 @@
     <div class="grid-stack">
         <MetricBlock Id="rps" X="0" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@labels.ToArray()"
+                      XAxisLabels="@GetLabels()"
                       Series="@(
                                     new ChartSeries[] {
-                                        new() { Name = "Requests/s", Data = rpsSamples.ToArray() }
+                                        new() { Name = "Requests/s", Data = GetData(rpsSamples) }
                                     })" />
         </MetricBlock>
         <MetricBlock Id="ua" X="3" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@labels.ToArray()"
+                      XAxisLabels="@GetLabels()"
                       Series="@(
                                     new ChartSeries[] {
-                                        new() { Name = "UA Entropy", Data = uaEntropySamples.ToArray() }
+                                        new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
                                     })" />
         </MetricBlock>
         <MetricBlock Id="schema" X="6" Y="0" Width="3" Height="2">
 
                                                 <MudChart ChartType="ChartType.Line"
-                                                          XAxisLabels="@labels.ToArray()"
+                                                          XAxisLabels="@GetLabels()"
                                                           Series="@(
                                     new ChartSeries[] {
-                                        new() { Name = "Schema Errors", Data = schemaErrorSamples.ToArray() }
+                                        new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
                                     })" />
         </MetricBlock>
         <MetricBlock Id="waf" X="9" Y="0" Width="3" Height="2">
             <MudChart ChartType="ChartType.Line"
-                      XAxisLabels="@labels.ToArray()"
+                      XAxisLabels="@GetLabels()"
                       Series="@(
                                     new ChartSeries[] {
-                                        new() { Name = "WAF Blocks", Data = wafBlockSamples.ToArray() }
+                                        new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
                                     })" />
         </MetricBlock>
     </div>
@@ -111,6 +111,12 @@
         if (list.Count > MaxSamples)
             list.RemoveAt(0);
     }
+
+    private string[] GetLabels()
+        => labels.Count > 0 ? labels.ToArray() : new[] { "0" };
+
+    private static double[] GetData(List<double> samples)
+        => samples.Count > 0 ? samples.ToArray() : new double[] { 0 };
 
     private async Task ResetLayout()
     {
