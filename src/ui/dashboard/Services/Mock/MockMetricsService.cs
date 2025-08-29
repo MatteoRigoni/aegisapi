@@ -16,7 +16,7 @@ public class MockMetricsService : IMetricsService
             .WithAutomaticReconnect()
             .Build();
 
-        connection.On<MetricDto>("metrics", handler);
+ connection.On<MetricDto>("metrics", handler);
 
         await connection.StartAsync(token);
         _ = connection.SendAsync("SendMetrics", cancellationToken: token);
