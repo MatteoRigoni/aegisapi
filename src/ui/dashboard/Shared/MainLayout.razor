@@ -6,7 +6,7 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div tabindex="0" @onkeydown="HandleKey">
+<div tabindex="0" @onkeydown="HandleKey" @onkeydown:preventDefault="true" @onkeydown:stopPropagation="true">
     <MudLayout>
         <MudAppBar Color="Color.Primary">
             Aegis Dashboard
@@ -29,11 +29,18 @@
 @code {
     [Inject] NavigationManager Nav { get; set; } = default!;
     [Inject] IConfiguration Configuration { get; set; } = default!;
+    [Inject] IDialogService Dialog { get; set; } = default!;
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
 
     private void HandleKey(KeyboardEventArgs e)
     {
+        if ((e.CtrlKey || e.MetaKey) && e.Key.Equals("k", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenCommandPalette();
+            return;
+        }
+
         switch (e.Key.ToLowerInvariant())
         {
             case "d":
@@ -46,5 +53,16 @@
                 Nav.NavigateTo("/policies");
                 break;
         }
+    }
+
+    private void OpenCommandPalette()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            DisableBackdropClick = true
+        };
+
+        Dialog.Show<SearchDialog>("Command Palette", options);
     }
 }

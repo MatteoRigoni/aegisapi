@@ -1,0 +1,76 @@
+@inject NavigationManager Nav
+@inject IIncidentService IncidentService
+@CascadingParameter MudDialogInstance MudDialog { get; set; } = default!
+
+<MudDialogContent>
+    <MudTextField @bind-Value="searchText" Placeholder="Search..." Immediate="true" AutoFocus="true" OnKeyDown="HandleInputKey" />
+    <MudList Dense="true">
+        @foreach (var item in FilteredItems)
+        {
+            <MudListItem @onclick="() => Select(item)">@item.Title</MudListItem>
+        }
+    </MudList>
+</MudDialogContent>
+
+@code {
+    private readonly List<SearchItem> items = new();
+    private string searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        items.Add(new("Apri dashboard", () => Nav.NavigateTo("/")));
+        items.Add(new("Apri incidenti", () => Nav.NavigateTo("/incidents")));
+        items.Add(new("Apri policy", () => Nav.NavigateTo("/policies")));
+        items.Add(new("Nuovo incidente", () => Nav.NavigateTo("/incidents/new")));
+
+        try
+        {
+            var incidents = await IncidentService.GetIncidentsAsync();
+            foreach (var incident in incidents)
+            {
+                var local = incident;
+                items.Add(new(local.Title, () => Nav.NavigateTo($"/incidents/{local.Id}")));
+            }
+        }
+        catch
+        {
+            // ignore fetching errors in quick search
+        }
+    }
+
+    private IEnumerable<SearchItem> FilteredItems => items.Where(i => FuzzyMatch(i.Title, searchText)).Take(10);
+
+    private bool FuzzyMatch(string source, string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+            return true;
+        source = source.ToLowerInvariant();
+        pattern = pattern.ToLowerInvariant();
+        int s = 0, p = 0;
+        while (s < source.Length && p < pattern.Length)
+        {
+            if (source[s] == pattern[p])
+                p++;
+            s++;
+        }
+        return p == pattern.Length;
+    }
+
+    private void HandleInputKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            var item = FilteredItems.FirstOrDefault();
+            if (item != null)
+                Select(item);
+        }
+    }
+
+    private void Select(SearchItem item)
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+        item.Action.Invoke();
+    }
+
+    private record SearchItem(string Title, Action Action);
+}
