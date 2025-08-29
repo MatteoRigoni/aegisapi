@@ -3,7 +3,7 @@
 @inject IControlPlaneService ControlService
 @inject ISnackbar Snackbar
 
-<MonacoEditor @ref="editor" @bind-Value="policy" Options="editorOptions" Height="300px" Class="ma-2" />
+<MonacoEditor @ref="editor" @bind-Value="policy" ConstructionOptions="editorOptions" Height="300px" Class="ma-2" />
 <MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
 <MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
 <MudButton OnClick="Save" Color="Color.Success">Save</MudButton>
