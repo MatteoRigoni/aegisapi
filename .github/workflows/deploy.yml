@@ -13,7 +13,7 @@ env:
   RG: aegisapi-rg
   LOCATION: eastus
   PREFIX: aegis
-  # se usi altre regioni/prefix, cambia qui
+  LOGIN_SERVER: ${{ env.PREFIX }}acr.azurecr.io
 
 jobs:
   deploy:
@@ -57,12 +57,12 @@ jobs:
           LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
           if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
           az deployment group validate \
-            -g $RG \
-            --template-file out/main.json \
-            --parameters namePrefix=$PREFIX \
-                         gatewayImage=$LOGIN_SERVER/gateway:latest \
-                         summarizerImage=$LOGIN_SERVER/summarizer:latest \
-                         dashboardImage=$LOGIN_SERVER/dashboard:latest
+          -g $RG \
+          --template-file out/main.json \
+          --parameters namePrefix=$PREFIX \
+                       gatewayImage=$LOGIN_SERVER/gateway:latest \
+                       summarizerImage=$LOGIN_SERVER/summarizer:latest \
+                       dashboardImage=$LOGIN_SERVER/dashboard:latest
 
       # 5c) Deploy reale (debug attivo)
       - name: Deploy compiled template (apply with debug)
@@ -73,12 +73,13 @@ jobs:
           LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
           if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
           az deployment group create \
+            az deployment group validate \
             -g $RG \
             --template-file out/main.json \
             --parameters namePrefix=$PREFIX \
                          gatewayImage=$LOGIN_SERVER/gateway:latest \
                          summarizerImage=$LOGIN_SERVER/summarizer:latest \
-                         dashboardImage=$LOGIN_SERVER/dashboard:latest \
+                         dashboardImage=$LOGIN_SERVER/dashboard:latest
             --debug
 
 
