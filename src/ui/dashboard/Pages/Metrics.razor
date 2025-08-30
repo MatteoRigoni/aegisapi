@@ -32,7 +32,7 @@
                     <MudChart @key="_rpsKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              ChartPalette="@_palette"
+                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(rpsSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Requests/s", Data = GetData(rpsSamples) }
@@ -54,7 +54,7 @@
                     <MudChart @key="_uaKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              ChartPalette="@_palette"
+                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(uaEntropySamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
@@ -76,7 +76,7 @@
                     <MudChart @key="_schemaKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              ChartPalette="@_palette"
+                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(schemaErrorSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
@@ -98,7 +98,7 @@
                     <MudChart @key="_wafKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              ChartPalette="@_palette"
+                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(wafBlockSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
@@ -130,7 +130,7 @@
     private bool _disposed;
 
     private int _xLabelEvery = 0; // 0 = auto; >0 = mostra una etichetta ogni N punti
-    private const int maxTicks = 6; // target max etichette in modalit‡ auto
+    private const int maxTicks = 6; // target max etichette in modalit√† auto
 
     private readonly ChartOptions _opts = new()
     {
