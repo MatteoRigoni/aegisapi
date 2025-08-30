@@ -1,0 +1,315 @@
+@page "/metrics"
+@using Microsoft.JSInterop
+@using System.Text.Json.Serialization
+@inject IMetricsService MetricsService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<MudStack Class="pa-4" Spacing="2">
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetLayout">Reset layout</MudButton>
+
+    <style>
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 12px;
+        }
+
+        .chart-box {
+            height: 360px;
+            width: 100%;
+        }
+    </style>
+
+    <div class="metrics-grid">
+
+        <MudPaper Class="pa-2">
+            <MudText Typo="Typo.subtitle2">Requests/s</MudText>
+            <div id="chart-rps" class="chart-box">
+                @if (IsRenderable(rpsSamples))
+                {
+                    <MudChart @key="_rpsKey"
+                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              Options="_opts"
+                              ChartPalette="@_palette"
+                              XAxisLabels="@GetLabelsFor(rpsSamples)"
+                              ChartSeries="@(new List<ChartSeries> {
+                                                            new() { Name = "Requests/s", Data = GetData(rpsSamples) }
+                                                        })"
+                          Width="100%" Height="260px" />
+                                }
+                else
+                {
+                    <MudText Typo="Typo.body2">Awaiting data (@rpsSamples.Count)</MudText>
+                }
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-2">
+            <MudText Typo="Typo.subtitle2">UA Entropy</MudText>
+            <div id="chart-ua" class="chart-box">
+                @if (IsRenderable(uaEntropySamples))
+                {
+                    <MudChart @key="_uaKey"
+                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              Options="_opts"
+                              ChartPalette="@_palette"
+                              XAxisLabels="@GetLabelsFor(uaEntropySamples)"
+                              ChartSeries="@(new List<ChartSeries> {
+                                                            new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
+                                                        })"
+                          Width="100%" Height="260px" />
+                                }
+                else
+                {
+                    <MudText Typo="Typo.body2">Awaiting data (@uaEntropySamples.Count)</MudText>
+                }
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-2">
+            <MudText Typo="Typo.subtitle2">Schema Errors</MudText>
+            <div id="chart-schema" class="chart-box">
+                @if (IsRenderable(schemaErrorSamples))
+                {
+                    <MudChart @key="_schemaKey"
+                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              Options="_opts"
+                              ChartPalette="@_palette"
+                              XAxisLabels="@GetLabelsFor(schemaErrorSamples)"
+                              ChartSeries="@(new List<ChartSeries> {
+                                                            new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
+                                                        })"
+                          Width="100%" Height="260px" />
+                                }
+                else
+                {
+                    <MudText Typo="Typo.body2">Awaiting data (@schemaErrorSamples.Count)</MudText>
+                }
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-2">
+            <MudText Typo="Typo.subtitle2">WAF Blocks</MudText>
+            <div id="chart-waf" class="chart-box">
+                @if (IsRenderable(wafBlockSamples))
+                {
+                    <MudChart @key="_wafKey"
+                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              Options="_opts"
+                              ChartPalette="@_palette"
+                              XAxisLabels="@GetLabelsFor(wafBlockSamples)"
+                              ChartSeries="@(new List<ChartSeries> {
+                                                            new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
+                                                        })"
+                          Width="100%" Height="260px" />
+                                }
+                else
+                {
+                    <MudText Typo="Typo.body2">Awaiting data (@wafBlockSamples.Count)</MudText>
+                }
+            </div>
+        </MudPaper>
+
+    </div>
+</MudStack>
+
+@code {
+    private int _rpsKey, _uaKey, _schemaKey, _wafKey;
+    private readonly string[] _palette = new[] { "#ff6b6b", "#4d96ff", "#ffd93d", "#6bcb77" };
+    private bool _useBars;
+
+    private readonly List<string> labels = new();
+    private readonly List<double> rpsSamples = new();
+    private readonly List<double> uaEntropySamples = new();
+    private readonly List<double> schemaErrorSamples = new();
+    private readonly List<double> wafBlockSamples = new();
+    private const int MaxSamples = 20;
+    private CancellationTokenSource? cts;
+    private IJSObjectReference? module;
+    private bool _disposed;
+
+    private int _xLabelEvery = 0; // 0 = auto; >0 = mostra una etichetta ogni N punti
+    private const int maxTicks = 6; // target max etichette in modalità auto
+
+    private readonly ChartOptions _opts = new()
+    {
+        YAxisRequireZeroPoint = false,
+        YAxisLines = true,
+        MaxNumYAxisTicks = 6,
+        YAxisTicks = 1
+    };
+
+    private readonly GridItem[] defaultLayout = new[]
+    {
+        new GridItem { Id = "rps", X = 0, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "ua", X = 3, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "schema", X = 6, Y = 0, W = 3, H = 2 },
+        new GridItem { Id = "waf", X = 9, Y = 0, W = 3, H = 2 }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        cts = new();
+        try
+        {
+            await MetricsService.StartMetricsAsync(OnMetric, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/metrics-layout.js");
+                await module.InvokeVoidAsync("init", defaultLayout);
+            }
+            catch (JSException ex)
+            {
+                Snackbar.Add($"Layout JS init failed: {ex.Message}", Severity.Error);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Init error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private Task OnMetric(MetricDto m)
+    {
+        if (_disposed || cts?.IsCancellationRequested == true)
+            return Task.CompletedTask;
+
+        labels.Add(m.Timestamp.ToString("HH:mm"));
+
+        rpsSamples.Add(Sanitize(m.Rps, rpsSamples));
+        uaEntropySamples.Add(Sanitize(m.UaEntropy, uaEntropySamples));
+        schemaErrorSamples.Add(Sanitize(m.SchemaErrors, schemaErrorSamples));
+        wafBlockSamples.Add(Sanitize(m.WafBlocks, wafBlockSamples));
+
+        Trim(labels);
+        Trim(rpsSamples);
+        Trim(uaEntropySamples);
+        Trim(schemaErrorSamples);
+        Trim(wafBlockSamples);
+
+        NormalizeFlatSeries(rpsSamples);
+        NormalizeFlatSeries(uaEntropySamples);
+        NormalizeFlatSeries(schemaErrorSamples);
+        NormalizeFlatSeries(wafBlockSamples);
+
+        _rpsKey = rpsSamples.Count;
+        _uaKey = uaEntropySamples.Count;
+        _schemaKey = schemaErrorSamples.Count;
+        _wafKey = wafBlockSamples.Count;
+
+        try { InvokeAsync(StateHasChanged); } catch { }
+        return Task.CompletedTask;
+    }
+
+    private static double Sanitize(double value, List<double> series)
+    {
+#if NET7_0_OR_GREATER
+        if (double.IsFinite(value)) return value;
+#else
+        if (!double.IsNaN(value) && !double.IsInfinity(value)) return value;
+#endif
+        return series.Count > 0 ? series[^1] : 0d;
+    }
+
+    private static void NormalizeFlatSeries(List<double> s)
+    {
+        if (s.Count < 2) return;
+        double first = s[0];
+        bool allEqual = true;
+        for (int i = 1; i < s.Count; i++)
+            if (s[i] != first) { allEqual = false; break; }
+        if (allEqual)
+        {
+            double eps = (first != 0 ? Math.Abs(first) : 1d) * 1e-9;
+            s[^1] = first + eps;
+        }
+    }
+
+    private static void Trim<T>(List<T> list)
+    {
+        if (list.Count > MaxSamples)
+            list.RemoveAt(0);
+    }
+
+    private string[] GetLabelsFor(List<double> samples)
+    {
+        if (samples.Count == 0)
+            return Array.Empty<string>();
+
+        var range = labels.TakeLast(samples.Count).ToArray();
+
+        // step manuale o calcolato per non superare ~maxTicks etichette
+        var step = _xLabelEvery > 0
+            ? _xLabelEvery
+            : (int)Math.Ceiling(range.Length / (double)maxTicks);
+
+        if (step < 1) step = 1;
+
+        for (var i = 0; i < range.Length; i++)
+            if (i % step != 0)
+                range[i] = string.Empty;
+
+        // assicurati che l'ultima etichetta si veda sempre (utile a colpo d'occhio)
+        if (range.Length > 0)
+            range[^1] = labels[^1];
+
+        return range;
+    }
+
+    private static double[] GetData(List<double> samples)
+        => samples.Count > 0 ? samples.ToArray() : Array.Empty<double>();
+
+    private static bool IsRenderable(List<double> samples)
+    {
+        if (samples.Count < 2) return false;
+#if NET7_0_OR_GREATER
+        return samples.TrueForAll(double.IsFinite);
+#else
+        return samples.TrueForAll(v => !double.IsNaN(v) && !double.IsInfinity(v));
+#endif
+    }
+
+    private async Task ResetLayout()
+    {
+        if (_disposed) return;
+        if (module != null)
+        {
+            await module.InvokeVoidAsync("reset");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        try { cts?.Cancel(); } catch { }
+
+        if (module != null)
+        {
+            try { await module.DisposeAsync(); } catch { }
+        }
+
+        cts?.Dispose();
+    }
+
+    class GridItem
+    {
+        [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+        [JsonPropertyName("x")] public int X { get; set; }
+        [JsonPropertyName("y")] public int Y { get; set; }
+        [JsonPropertyName("w")] public int W { get; set; }
+        [JsonPropertyName("h")] public int H { get; set; }
+    }
+}
