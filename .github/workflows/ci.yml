@@ -70,3 +70,53 @@ jobs:
             **/TestResults/*.trx
             **/TestResults/*/coverage.cobertura.xml
             ${{ steps.coverage.outputs.file }}
+
+  e2e-tests:
+    if: github.event_name == 'pull_request'
+    name: Gateway E2E Tests (.NET 9)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.sln
+            **/*.csproj
+            **/global.json
+            **/nuget.config
+
+      - name: Restore
+        run: |
+          if [ "${USE_LOCKED_MODE}" = "true" ]; then
+            dotnet restore --locked-mode
+          else
+            dotnet restore
+          fi
+
+      - name: Build Gateway & E2E Tests
+        run: >
+          dotnet build
+          src/gateway/Gateway.csproj
+          tests/Gateway.E2ETests/Gateway.E2ETests.csproj
+          --configuration Release --no-restore
+
+      - name: Test (E2E)
+        run: >
+          dotnet test tests/Gateway.E2ETests --configuration Release
+          --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          if-no-files-found: warn
+          path: |
+            **/TestResults/*.trx
