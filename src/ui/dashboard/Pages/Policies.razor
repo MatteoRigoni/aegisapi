@@ -1,96 +1,93 @@
 @page "/policies"
-@using System.Text.Json
-@using Dashboard.Services.Mock
+@using Dashboard.Models
+@using System.Linq
 @inject IControlPlaneService ControlService
-@inject ISnackbar Snackbar
 
-<MudText Class="ma-2">
-This page lets you view and edit the gateway policy. It loads and saves the policy
-    through the <code>IControlPlaneService</code>.
-    @if (ControlService is MockControlPlaneService)
-    {
-        <text>The mock service stores the policy in memory for demonstration.</text>
-    }
-    else
-    {
-        <text>Real control plane endpoints are not implemented yet.</text>
-    }
-</MudText>
-
-<MudTextField T="string"
-              @bind-Value="policy"
-              Lines="15"
-              Class="ma-2"
-              Variant="Variant.Outlined"
-              Style="font-family:monospace;" />
-<MudButton OnClick="Validate" Color="Color.Primary">Validate</MudButton>
-<MudButton OnClick="Format" Color="Color.Secondary">Format</MudButton>
-<MudButton OnClick="Save" Color="Color.Success">Save</MudButton>
-<MudButton OnClick="SuggestPatch" Color="Color.Info">Suggest patch</MudButton>
+<MudTabs>
+    <MudTabPanel Text="API Keys" Icon="@Icons.Material.Filled.VpnKey">
+        <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
+        <MudTable Items="_apiKeys" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Name</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="Routes" Icon="@Icons.Material.Filled.AltRoute">
+        <MudButton Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
+        <MudTable Items="_routes" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Path</MudTh>
+                <MudTh>Destination</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Path">@context.Path</MudTd>
+                <MudTd DataLabel="Destination">@context.Destination</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="Rate Limits" Icon="@Icons.Material.Filled.Speed">
+        <MudButton Color="Color.Info" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
+        <MudTable Items="_plans" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Plan</MudTh>
+                <MudTh>RPM</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Plan">@context.Plan</MudTd>
+                <MudTd DataLabel="RPM">@context.Rpm</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="WAF" Icon="@Icons.Material.Filled.Security">
+        <MudTable Items="_waf" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Rule</MudTh>
+                <MudTh>Enabled</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Rule">@context.Rule</MudTd>
+                <MudTd DataLabel="Enabled">
+                    <MudSwitch @bind-Checked="context.Enabled" Color="Color.Success" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="Audit" Icon="@Icons.Material.Filled.History">
+        <MudTable Items="_audit" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Time</MudTh>
+                <MudTh>Action</MudTh>
+                <MudTh>Subject</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Time">@context.Timestamp.ToLocalTime()</MudTd>
+                <MudTd DataLabel="Action">@context.Action</MudTd>
+                <MudTd DataLabel="Subject">@context.Subject</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+</MudTabs>
 
 @code {
-    private string policy = "{}";
+    private List<ApiKeyDto> _apiKeys = new();
+    private List<RouteDto> _routes = new();
+    private List<RateLimitPlanDto> _plans = new();
+    private List<WafRuleDto> _waf = new();
+    private List<AuditEntryDto> _audit = new();
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            policy = await ControlService.LoadPolicyAsync();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Warning);
-        }
-    }
-
-    private void Validate()
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(policy);
-            Snackbar.Add("Policy valid", Severity.Success);
-        }
-        catch
-        {
-            Snackbar.Add("Invalid JSON", Severity.Error);
-        }
-    }
-
-    private void Format()
-    {
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(policy);
-            policy = JsonSerializer.Serialize(element, new JsonSerializerOptions { WriteIndented = true });
-        }
-        catch
-        {
-            Snackbar.Add("Invalid JSON", Severity.Error);
-        }
-    }
-
-    private async Task Save()
-    {
-        try
-        {
-            await ControlService.SavePolicyAsync(policy);
-            Snackbar.Add("Policy saved", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Warning);
-        }
-    }
-
-    private async Task SuggestPatch()
-    {
-        try
-        {
-            policy = await ControlService.SuggestPolicyPatchAsync(policy);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Warning);
-        }
+        _apiKeys = (await ControlService.GetApiKeysAsync()).ToList();
+        _routes = (await ControlService.GetRoutesAsync()).ToList();
+        _plans = (await ControlService.GetRateLimitPlansAsync()).ToList();
+        _waf = (await ControlService.GetWafRulesAsync()).ToList();
+        _audit = (await ControlService.GetAuditEntriesAsync()).ToList();
     }
 }
