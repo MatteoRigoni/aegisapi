@@ -25,7 +25,7 @@ public class JwtProxyTests
         await backend.StartAsync();
         var backendUrl = backend.Urls.First().TrimEnd('/') + "/";
 
-        var jwtKey = "dev-secret";
+        var jwtKey = "dev-secret-please-change-this-key-32bytes-min";
 
         // Configure gateway to use backend and auth key
         using var factory = new WebApplicationFactory<Program>()
