@@ -4,8 +4,8 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudStack Direction="Column" Class="pa-4">
-    <MudStack Direction="Row" Spacing="2" Class="mb-4">
+<MudStack Row="false" Class="pa-4">
+    <MudStack Row="true" Spacing="2" Class="mb-4">
         <MudTextField T="string"
                       @bind-Value="searchString"
                       Placeholder="Search"

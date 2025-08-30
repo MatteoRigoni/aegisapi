@@ -31,7 +31,7 @@
                 {
                     <MudChart @key="_rpsKey"
                               ChartType="ChartType.Line"
-                              Options="_opts"
+                              ChartOptions="_opts"
                               XAxisLabels="@GetLabelsFor(rpsSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Requests/s", Data = GetData(rpsSamples) }
@@ -52,7 +52,7 @@
                 {
                     <MudChart @key="_uaKey"
                               ChartType="ChartType.Line"
-                              Options="_opts"
+                              ChartOptions="_opts"
                               XAxisLabels="@GetLabelsFor(uaEntropySamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
@@ -73,7 +73,7 @@
                 {
                     <MudChart @key="_schemaKey"
                               ChartType="ChartType.Line"
-                              Options="_opts"
+                              ChartOptions="_opts"
                               XAxisLabels="@GetLabelsFor(schemaErrorSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
@@ -94,7 +94,7 @@
                 {
                     <MudChart @key="_wafKey"
                               ChartType="ChartType.Line"
-                              Options="_opts"
+                              ChartOptions="_opts"
                               XAxisLabels="@GetLabelsFor(wafBlockSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
