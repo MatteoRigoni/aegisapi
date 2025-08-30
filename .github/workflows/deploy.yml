@@ -43,36 +43,29 @@ jobs:
         run: |
           az group create -n $RG -l $LOCATION
 
-            # 5a) VALIDATE: controlla che parametri/template siano ok
-      - name: Validate Bicep (no changes)
+      # 5a) Compila Bicep -> ARM JSON
+      - name: Compile Bicep to JSON
+        run: |
+          mkdir -p out
+          az bicep build --file infra/main.bicep --outdir out
+          ls -la out
+
+      # 5b) Validate sul JSON compilato
+      - name: Validate compiled template
         run: |
           ACR_NAME="${PREFIX}acr"
           LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
           if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
           az deployment group validate \
             -g $RG \
-            --template-file infra/main.bicep \
+            --template-file out/main.json \
             --parameters namePrefix=$PREFIX \
                          gatewayImage=$LOGIN_SERVER/gateway:latest \
                          summarizerImage=$LOGIN_SERVER/summarizer:latest \
                          dashboardImage=$LOGIN_SERVER/dashboard:latest
 
-      # 5b) WHAT-IF: anteprima delle operazioni (mostra conflitti/permessi/naming)
-      - name: What-If Bicep (preview changes)
-        run: |
-          ACR_NAME="${PREFIX}acr"
-          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
-          if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
-          az deployment group what-if \
-            -g $RG \
-            --template-file infra/main.bicep \
-            --parameters namePrefix=$PREFIX \
-                         gatewayImage=$LOGIN_SERVER/gateway:latest \
-                         summarizerImage=$LOGIN_SERVER/summarizer:latest \
-                         dashboardImage=$LOGIN_SERVER/dashboard:latest
-
-      # 5c) DEPLOY reale con DEBUG abilitato (log verbosi)
-      - name: Deploy Bicep (apply with debug)
+      # 5c) Deploy reale (debug attivo)
+      - name: Deploy compiled template (apply with debug)
         env:
           AZURE_CORE_COLLECT_TELEMETRY: "false"
         run: |
@@ -81,12 +74,13 @@ jobs:
           if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
           az deployment group create \
             -g $RG \
-            --template-file infra/main.bicep \
+            --template-file out/main.json \
             --parameters namePrefix=$PREFIX \
                          gatewayImage=$LOGIN_SERVER/gateway:latest \
                          summarizerImage=$LOGIN_SERVER/summarizer:latest \
                          dashboardImage=$LOGIN_SERVER/dashboard:latest \
             --debug
+
 
       # 6) Imposta il secret in Key Vault
       #    Cosa fa: scrive "sample-secret" nel KV creato (richiesto dalle app nel tuo Bicep)
