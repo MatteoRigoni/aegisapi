@@ -135,7 +135,8 @@
         YAxisRequireZeroPoint = false,
         YAxisLines = true,
         MaxNumYAxisTicks = 6,
-        YAxisTicks = 1
+        YAxisTicks = 1,
+        MaxNumXAxisTicks = 6
     };
 
     private readonly GridItem[] defaultLayout = new[]
@@ -184,7 +185,7 @@
         if (_disposed || cts?.IsCancellationRequested == true)
             return Task.CompletedTask;
 
-        labels.Add(m.Timestamp.ToString("HH:mm:ss"));
+        labels.Add(m.Timestamp.ToString("HH:mm"));
 
         rpsSamples.Add(Sanitize(m.Rps, rpsSamples));
         uaEntropySamples.Add(Sanitize(m.UaEntropy, uaEntropySamples));
@@ -242,7 +243,21 @@
     }
 
     private string[] GetLabelsFor(List<double> samples)
-        => samples.Count > 0 ? labels.TakeLast(samples.Count).ToArray() : Array.Empty<string>();
+    {
+        if (samples.Count == 0)
+            return Array.Empty<string>();
+
+        var range = labels.TakeLast(samples.Count).ToArray();
+        const int maxTicks = 6;
+        var step = (int)Math.Ceiling(range.Length / (double)maxTicks);
+        for (var i = 0; i < range.Length; i++)
+        {
+            if (i % step != 0)
+                range[i] = string.Empty;
+        }
+
+        return range;
+    }
 
     private static double[] GetData(List<double> samples)
         => samples.Count > 0 ? samples.ToArray() : Array.Empty<double>();
