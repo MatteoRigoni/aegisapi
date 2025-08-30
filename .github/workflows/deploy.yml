@@ -1,0 +1,107 @@
+name: Deploy infra + apps
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # necessario per OIDC
+  contents: read
+
+env:
+  RG: aegisapi-rg
+  LOCATION: eastus
+  PREFIX: aegis
+  # se usi altre regioni/prefix, cambia qui
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout del codice
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) Login in Azure via OIDC (usa i 3 secrets che hai creato)
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 3) Az CLI info utili (verifica contesto)
+      - name: Show Azure context
+        run: |
+          az account show
+          az --version
+
+      # 4) Crea/aggiorna il Resource Group (idempotente)
+      - name: Ensure Resource Group
+        run: |
+          az group create -n $RG -l $LOCATION
+
+      # 5) Deploy Bicep di tutta l’infrastruttura
+      #    Cosa fa: crea ACR, Log Analytics, Environment ACA, Key Vault e le 3 Container App
+      - name: Deploy Bicep (infra/main.bicep)
+        run: |
+          # recupera il login server ACR *se esiste*, altrimenti verrà creato nel deploy
+          ACR_NAME="${PREFIX}acr"
+          # prova a leggere il loginServer; se non c'è, ignora l'errore
+          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
+
+          # se non esiste ancora, usa il formato previsto <prefix>acr.azurecr.io (verrà valido dopo il deploy)
+          if [ -z "$LOGIN_SERVER" ]; then
+            LOGIN_SERVER="${ACR_NAME}.azurecr.io"
+          fi
+
+          az deployment group create \
+            -g $RG \
+            --template-file infra/main.bicep \
+            --parameters namePrefix=$PREFIX \
+                         gatewayImage=$LOGIN_SERVER/gateway:latest \
+                         summarizerImage=$LOGIN_SERVER/summarizer:latest \
+                         dashboardImage=$LOGIN_SERVER/dashboard:latest
+
+      # 6) Imposta il secret in Key Vault
+      #    Cosa fa: scrive "sample-secret" nel KV creato (richiesto dalle app nel tuo Bicep)
+      - name: Seed Key Vault secret
+        run: |
+          KEYVAULT_NAME="${PREFIX}-kv"
+          az keyvault secret set --vault-name "$KEYVAULT_NAME" --name sample-secret --value "changeme-from-gha"
+
+      # 7) Recupera il login server ACR (ora esiste sicuramente)
+      - name: Get ACR login server
+        id: acr
+        run: |
+          ACR_NAME="${PREFIX}acr"
+          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
+          echo "LOGIN_SERVER=$LOGIN_SERVER" >> $GITHUB_OUTPUT
+
+      # 8) Build & push immagini su ACR (usa ACR Tasks remoti)
+      #    Cosa fa: costruisce le tre immagini e le tagga :latest
+      - name: Build and Push Images
+        run: |
+          ACR_NAME="${PREFIX}acr"
+          az acr build -r "$ACR_NAME" -t gateway:latest path/to/gateway
+          az acr build -r "$ACR_NAME" -t summarizer:latest path/to/summarizer
+          az acr build -r "$ACR_NAME" -t dashboard:latest path/to/dashboard
+
+      # 9) Aggiorna le Container Apps alle nuove immagini e forza reload secrets
+      #    Cosa fa: genera una nuova revisione per ciascuna app
+      - name: Roll apps to new images & refresh secrets
+        run: |
+          LOGIN_SERVER="${{ steps.acr.outputs.LOGIN_SERVER }}"
+          az containerapp update -n "${PREFIX}-gateway" -g $RG --image "$LOGIN_SERVER/gateway:latest"
+          az containerapp update -n "${PREFIX}-summarizer" -g $RG --image "$LOGIN_SERVER/summarizer:latest"
+          az containerapp update -n "${PREFIX}-dashboard" -g $RG --image "$LOGIN_SERVER/dashboard:latest"
+
+      # 10) Stampa gli endpoint pubblici (gateway, dashboard)
+      - name: Show endpoints
+        run: |
+          GATEWAY_FQDN=$(az containerapp show -n "${PREFIX}-gateway" -g $RG --query properties.configuration.ingress.fqdn -o tsv)
+          DASHBOARD_FQDN=$(az containerapp show -n "${PREFIX}-dashboard" -g $RG --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Gateway:   https://${GATEWAY_FQDN}"
+          echo "Dashboard: https://${DASHBOARD_FQDN}"
