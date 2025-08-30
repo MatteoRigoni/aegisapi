@@ -1,3 +1,3 @@
 namespace Dashboard.Models;
 
-public record MetricDto(double Rps, double UaEntropy, int SchemaErrors, int WafBlocks);
+public record MetricDto(DateTime Timestamp, double Rps, double UaEntropy, int SchemaErrors, int WafBlocks);

@@ -41,7 +41,7 @@
                                 }
                 else
                 {
-                    <MudText Typo="Typo.body2">In attesa dati… (@rpsSamples.Count)</MudText>
+                    <MudText Typo="Typo.body2">In attesa dati (@rpsSamples.Count)</MudText>
                 }
             </div>
         </MudPaper>
@@ -63,7 +63,7 @@
                                 }
                 else
                 {
-                    <MudText Typo="Typo.body2">In attesa dati… (@uaEntropySamples.Count)</MudText>
+                    <MudText Typo="Typo.body2">In attesa dati (@uaEntropySamples.Count)</MudText>
                 }
             </div>
         </MudPaper>
@@ -85,7 +85,7 @@
                                 }
                 else
                 {
-                    <MudText Typo="Typo.body2">In attesa dati… (@schemaErrorSamples.Count)</MudText>
+                    <MudText Typo="Typo.body2">In attesa dati (@schemaErrorSamples.Count)</MudText>
                 }
             </div>
         </MudPaper>
@@ -107,7 +107,7 @@
                                 }
                 else
                 {
-                    <MudText Typo="Typo.body2">In attesa dati… (@wafBlockSamples.Count)</MudText>
+                    <MudText Typo="Typo.body2">In attesa dati (@wafBlockSamples.Count)</MudText>
                 }
             </div>
         </MudPaper>
@@ -125,8 +125,6 @@
     private readonly List<double> uaEntropySamples = new();
     private readonly List<double> schemaErrorSamples = new();
     private readonly List<double> wafBlockSamples = new();
-
-    private int sampleIndex;
     private const int MaxSamples = 20;
     private CancellationTokenSource? cts;
     private IJSObjectReference? module;
@@ -186,8 +184,7 @@
         if (_disposed || cts?.IsCancellationRequested == true)
             return Task.CompletedTask;
 
-        labels.Add(sampleIndex.ToString());
-        sampleIndex++;
+        labels.Add(m.Timestamp.ToString("HH:mm:ss"));
 
         rpsSamples.Add(Sanitize(m.Rps, rpsSamples));
         uaEntropySamples.Add(Sanitize(m.UaEntropy, uaEntropySamples));
