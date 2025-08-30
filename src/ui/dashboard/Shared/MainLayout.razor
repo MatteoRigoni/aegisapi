@@ -1,0 +1,110 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@using MudBlazor
+@using Microsoft.Extensions.Configuration
+
+@inject MudThemeManager ThemeManager
+@inject IBrowserViewportService BrowserViewportService
+
+<MudThemeProvider Theme="@ThemeManager.CurrentTheme" IsDarkMode="@ThemeManager.IsDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div tabindex="0">
+    <MudLayout>
+        <MudAppBar Color="Color.Primary">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Dark" OnClick="ToggleNavMenu" />
+            <span class="cursive-title">Aegis Dashboard</span>
+            <MudSpacer />
+            <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
+            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Alpha</MudChip>
+        </MudAppBar>
+        <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent Class="app-background mud-main-content">
+            @Body
+        </MudMainContent>
+    </MudLayout>
+    @if (UseMocks)
+    {
+        <div class="mock-banner full-width">MOCK MODE</div>
+    }
+</div>
+
+@code {
+    [Inject] NavigationManager Nav { get; set; } = default!;
+    [Inject] IConfiguration Configuration { get; set; } = default!;
+    [Inject] IDialogService Dialog { get; set; } = default!;
+
+    private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
+    private bool isNavMenuOpen = true;
+    private IDisposable? breakpointSubscription;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var bp = await BrowserViewportService.GetCurrentBreakpointAsync();
+        isNavMenuOpen = bp >= Breakpoint.Md;
+
+        await ThemeManager.InitializeAsync();
+        StateHasChanged();
+    }
+
+    private Task OnBreakpointChanged(Breakpoint bp)
+    {
+        isNavMenuOpen = bp >= Breakpoint.Md;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeManager.ToggleThemeAsync();
+        StateHasChanged();
+    }
+
+    private void ToggleNavMenu()
+    {
+        isNavMenuOpen = !isNavMenuOpen;
+    }
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        if ((e.CtrlKey || e.MetaKey) && e.Key.Equals("k", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenCommandPalette();
+            return;
+        }
+
+        switch (e.Key.ToLowerInvariant())
+        {
+            case "d":
+                Nav.NavigateTo("/");
+                break;
+            case "i":
+                Nav.NavigateTo("/incidents");
+                break;
+            case "p":
+                Nav.NavigateTo("/policies");
+                break;
+        }
+    }
+
+    private void OpenCommandPalette()
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true
+        };
+
+        Dialog.Show<SearchDialog>("Command Palette", options);
+    }
+
+    public void Dispose()
+    {
+        breakpointSubscription?.Dispose();
+    }
+}

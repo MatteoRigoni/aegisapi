@@ -1,0 +1,78 @@
+@page "/"
+@inject IMetricsService MetricsService
+@inject ISnackbar Snackbar
+
+<MudGrid Class="pa-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Requests/s</MudText>
+                <MudText Typo="Typo.h4">@rps.ToString("F1")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.DeviceUnknown" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">UA Entropy</MudText>
+                <MudText Typo="Typo.h4">@uaEntropy.ToString("F2")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Rule" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">Schema Errors</MudText>
+                <MudText Typo="Typo.h4">@schemaErrors</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Class="wow-card pa-4">
+            <MudCardContent Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Large" />
+                <MudText Typo="Typo.subtitle1">WAF Blocks</MudText>
+                <MudText Typo="Typo.h4">@wafBlocks</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private double rps;
+    private double uaEntropy;
+    private int schemaErrors;
+    private int wafBlocks;
+    private CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cts = new();
+        try
+        {
+            await MetricsService.StartMetricsAsync(OnMetric, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private Task OnMetric(MetricDto m)
+    {
+        rps = m.Rps;
+        uaEntropy = m.UaEntropy;
+        schemaErrors = m.SchemaErrors;
+        wafBlocks = m.WafBlocks;
+        InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+    }
+}
