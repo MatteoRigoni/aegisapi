@@ -3,6 +3,7 @@
 [![CI – Build & Test](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml)
 [![SBOM](https://github.com/MatteoRigoni/aegisapi/actions/workflows/sbom.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/sbom.yml)
+[![E2E Tests](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml/badge.svg?branch=master&job=e2e-tests)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml)
 
 
 **AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **OpenTelemetry observability** to keep your APIs safe, fast, and compliant.
