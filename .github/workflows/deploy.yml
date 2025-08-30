@@ -2,17 +2,18 @@ name: Deploy infra + apps
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   workflow_dispatch: {}
 
 permissions:
-  id-token: write   # necessario per OIDC
+  id-token: write    # necessario per OIDC
   contents: read
 
 env:
   RG: aegisapi-rg
   LOCATION: eastus
   PREFIX: aegis
+  # login server deterministico per l'ACR <prefix>acr
   LOGIN_SERVER: ${{ env.PREFIX }}acr.azurecr.io
 
 jobs:
@@ -32,7 +33,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 3) Az CLI info utili (verifica contesto)
+      # 3) Info di contesto
       - name: Show Azure context
         run: |
           az account show
@@ -43,7 +44,7 @@ jobs:
         run: |
           az group create -n $RG -l $LOCATION
 
-      # 5a) Compila Bicep -> ARM JSON
+      # 5a) Compila Bicep -> ARM JSON (aggira bug validate/what-if)
       - name: Compile Bicep to JSON
         run: |
           mkdir -p out
@@ -53,53 +54,46 @@ jobs:
       # 5b) Validate sul JSON compilato
       - name: Validate compiled template
         run: |
-          ACR_NAME="${PREFIX}acr"
-          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
-          if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
           az deployment group validate \
-          -g $RG \
-          --template-file out/main.json \
-          --parameters namePrefix=$PREFIX \
-                       gatewayImage=$LOGIN_SERVER/gateway:latest \
-                       summarizerImage=$LOGIN_SERVER/summarizer:latest \
-                       dashboardImage=$LOGIN_SERVER/dashboard:latest
-
-      # 5c) Deploy reale (debug attivo)
-      - name: Deploy compiled template (apply with debug)
-        env:
-          AZURE_CORE_COLLECT_TELEMETRY: "false"
-        run: |
-          ACR_NAME="${PREFIX}acr"
-          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv 2>/dev/null || true)
-          if [ -z "$LOGIN_SERVER" ]; then LOGIN_SERVER="${ACR_NAME}.azurecr.io"; fi
-          az deployment group create \
-            az deployment group validate \
             -g $RG \
             --template-file out/main.json \
             --parameters namePrefix=$PREFIX \
                          gatewayImage=$LOGIN_SERVER/gateway:latest \
                          summarizerImage=$LOGIN_SERVER/summarizer:latest \
                          dashboardImage=$LOGIN_SERVER/dashboard:latest
+
+      # 5c) Deploy reale (debug attivo)
+      - name: Deploy compiled template (apply with debug)
+        env:
+          AZURE_CORE_COLLECT_TELEMETRY: "false"
+        run: |
+          az deployment group create \
+            -g $RG \
+            --template-file out/main.json \
+            --parameters namePrefix=$PREFIX \
+                         gatewayImage=$LOGIN_SERVER/gateway:latest \
+                         summarizerImage=$LOGIN_SERVER/summarizer:latest \
+                         dashboardImage=$LOGIN_SERVER/dashboard:latest \
             --debug
 
+      # 6) Concedi al workflow il ruolo dati su Key Vault (per poter fare secret set)
+      - name: Grant Key Vault data-plane role to OIDC app
+        run: |
+          KEYVAULT_NAME="${PREFIX}-kv"
+          KV_ID=$(az keyvault show -n "$KEYVAULT_NAME" --query id -o tsv)
+          az role assignment create \
+            --assignee ${{ secrets.AZURE_CLIENT_ID }} \
+            --role "Key Vault Secrets Officer" \
+            --scope "$KV_ID" \
+          || true
 
-      # 6) Imposta il secret in Key Vault
-      #    Cosa fa: scrive "sample-secret" nel KV creato (richiesto dalle app nel tuo Bicep)
+      # 7) Imposta il secret in Key Vault (consumato dalle app via KeyVault reference)
       - name: Seed Key Vault secret
         run: |
           KEYVAULT_NAME="${PREFIX}-kv"
           az keyvault secret set --vault-name "$KEYVAULT_NAME" --name sample-secret --value "changeme-from-gha"
 
-      # 7) Recupera il login server ACR (ora esiste sicuramente)
-      - name: Get ACR login server
-        id: acr
-        run: |
-          ACR_NAME="${PREFIX}acr"
-          LOGIN_SERVER=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)
-          echo "LOGIN_SERVER=$LOGIN_SERVER" >> $GITHUB_OUTPUT
-
-      # 8) Build & push immagini su ACR (usa ACR Tasks remoti)
-      #    Cosa fa: costruisce le tre immagini e le tagga :latest
+      # 8) Build & push immagini su ACR (ACR si chiama sempre <prefix>acr)
       - name: Build and Push Images
         run: |
           ACR_NAME="${PREFIX}acr"
@@ -107,11 +101,9 @@ jobs:
           az acr build -r "$ACR_NAME" -t summarizer:latest path/to/summarizer
           az acr build -r "$ACR_NAME" -t dashboard:latest path/to/dashboard
 
-      # 9) Aggiorna le Container Apps alle nuove immagini e forza reload secrets
-      #    Cosa fa: genera una nuova revisione per ciascuna app
+      # 9) Aggiorna le Container Apps alle nuove immagini (nuova revisione, ricarica secrets)
       - name: Roll apps to new images & refresh secrets
         run: |
-          LOGIN_SERVER="${{ steps.acr.outputs.LOGIN_SERVER }}"
           az containerapp update -n "${PREFIX}-gateway" -g $RG --image "$LOGIN_SERVER/gateway:latest"
           az containerapp update -n "${PREFIX}-summarizer" -g $RG --image "$LOGIN_SERVER/summarizer:latest"
           az containerapp update -n "${PREFIX}-dashboard" -g $RG --image "$LOGIN_SERVER/dashboard:latest"
@@ -123,13 +115,3 @@ jobs:
           DASHBOARD_FQDN=$(az containerapp show -n "${PREFIX}-dashboard" -g $RG --query properties.configuration.ingress.fqdn -o tsv)
           echo "Gateway:   https://${GATEWAY_FQDN}"
           echo "Dashboard: https://${DASHBOARD_FQDN}"
-
-      - name: Grant Key Vault data-plane role to OIDC app
-        run: |
-           KEYVAULT_NAME="${PREFIX}-kv"
-           KV_ID=$(az keyvault show -n "$KEYVAULT_NAME" --query id -o tsv)
-           # Ruolo dati: Key Vault Secrets Officer (consente SET/GET/DELETE segreti)
-           az role assignment create \
-             --assignee ${{ secrets.AZURE_CLIENT_ID }} \
-             --role "Key Vault Secrets Officer" \
-             --scope "$KV_ID"
