@@ -1,5 +1,4 @@
 @inherits LayoutComponentBase
-@implements IDisposable
 @using MudBlazor
 @using Microsoft.Extensions.Configuration
 
@@ -40,7 +39,6 @@
 
     private bool UseMocks => Configuration.GetValue<bool>("UseMocks");
     private bool isNavMenuOpen = true;
-    private IDisposable? breakpointSubscription;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -51,13 +49,6 @@
 
         await ThemeManager.InitializeAsync();
         StateHasChanged();
-    }
-
-    private Task OnBreakpointChanged(Breakpoint bp)
-    {
-        isNavMenuOpen = bp >= Breakpoint.Md;
-        StateHasChanged();
-        return Task.CompletedTask;
     }
 
     private async Task ToggleTheme()
@@ -100,11 +91,6 @@
             CloseOnEscapeKey = true
         };
 
-        Dialog.Show<SearchDialog>("Command Palette", options);
-    }
-
-    public void Dispose()
-    {
-        breakpointSubscription?.Dispose();
+        _ = Dialog.ShowAsync<SearchDialog>("Command Palette", options);
     }
 }

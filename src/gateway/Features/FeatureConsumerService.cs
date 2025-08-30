@@ -1,5 +1,4 @@
 using Gateway.AI;
-using Gateway.AI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
