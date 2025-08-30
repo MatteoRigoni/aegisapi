@@ -2,8 +2,10 @@
 @inject INetworkService NetworkService
 @inject IJSRuntime JS
 
-<h3>Network Map</h3>
-<canvas id="networkCanvas" style="width:100%; height:500px;"></canvas>
+<MudStack Direction="Column" Class="page-padding">
+    <h3>Network Map</h3>
+    <canvas id="networkCanvas" style="width:100%; height:500px;"></canvas>
+</MudStack>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)

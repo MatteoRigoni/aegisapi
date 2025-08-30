@@ -1,72 +1,82 @@
 @page "/policies"
-@using Dashboard.Models
 @using System.Linq
 @inject IControlPlaneService ControlService
 
-<MudTabs>
+<MudTabs Class="page-padding">
     <MudTabPanel Text="API Keys" Icon="@Icons.Material.Filled.VpnKey">
         <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
-        <MudTable Items="_apiKeys" Striped="true" Hover="true">
+
+        <MudTable T="ApiKeyDto" Items="_apiKeys" Striped="true" Hover="true">
             <HeaderContent>
                 <MudTh>Id</MudTh>
                 <MudTh>Name</MudTh>
             </HeaderContent>
-            <RowTemplate>
+            <RowTemplate Context="context">
                 <MudTd DataLabel="Id">@context.Id</MudTd>
                 <MudTd DataLabel="Name">@context.Name</MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
+
     <MudTabPanel Text="Routes" Icon="@Icons.Material.Filled.AltRoute">
         <MudButton Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
-        <MudTable Items="_routes" Striped="true" Hover="true">
+
+        <MudTable T="RouteDto" Items="_routes" Striped="true" Hover="true">
             <HeaderContent>
                 <MudTh>Id</MudTh>
                 <MudTh>Path</MudTh>
                 <MudTh>Destination</MudTh>
             </HeaderContent>
-            <RowTemplate>
+            <RowTemplate Context="context">
                 <MudTd DataLabel="Id">@context.Id</MudTd>
                 <MudTd DataLabel="Path">@context.Path</MudTd>
                 <MudTd DataLabel="Destination">@context.Destination</MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
+
     <MudTabPanel Text="Rate Limits" Icon="@Icons.Material.Filled.Speed">
         <MudButton Color="Color.Info" StartIcon="@Icons.Material.Filled.Add" Class="mb-2">Add</MudButton>
-        <MudTable Items="_plans" Striped="true" Hover="true">
+
+        <MudTable T="RateLimitPlanDto" Items="_plans" Striped="true" Hover="true">
             <HeaderContent>
                 <MudTh>Plan</MudTh>
                 <MudTh>RPM</MudTh>
             </HeaderContent>
-            <RowTemplate>
+            <RowTemplate Context="context">
                 <MudTd DataLabel="Plan">@context.Plan</MudTd>
                 <MudTd DataLabel="RPM">@context.Rpm</MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
+
     <MudTabPanel Text="WAF" Icon="@Icons.Material.Filled.Security">
-        <MudTable Items="_waf" Striped="true" Hover="true">
+        <MudTable T="WafRuleDto" Items="_waf" Striped="true" Hover="true">
             <HeaderContent>
                 <MudTh>Rule</MudTh>
                 <MudTh>Enabled</MudTh>
             </HeaderContent>
-            <RowTemplate>
+            <RowTemplate Context="context">
                 <MudTd DataLabel="Rule">@context.Rule</MudTd>
                 <MudTd DataLabel="Enabled">
-                    <MudSwitch @bind-Checked="context.Enabled" Color="Color.Success" />
+                    <MudSwitch T="bool"
+                               Value="context.Enabled"
+                               ValueChanged="@( (bool v) => OnEnabledChanged(context, v) )"
+                               Color="Color.Success" />
+
                 </MudTd>
             </RowTemplate>
         </MudTable>
     </MudTabPanel>
+
     <MudTabPanel Text="Audit" Icon="@Icons.Material.Filled.History">
-        <MudTable Items="_audit" Striped="true" Hover="true">
+        <MudTable T="AuditEntryDto" Items="_audit" Striped="true" Hover="true">
             <HeaderContent>
                 <MudTh>Time</MudTh>
                 <MudTh>Action</MudTh>
                 <MudTh>Subject</MudTh>
             </HeaderContent>
-            <RowTemplate>
+            <RowTemplate Context="context">
                 <MudTd DataLabel="Time">@context.Timestamp.ToLocalTime()</MudTd>
                 <MudTd DataLabel="Action">@context.Action</MudTd>
                 <MudTd DataLabel="Subject">@context.Subject</MudTd>
@@ -89,5 +99,15 @@
         _plans = (await ControlService.GetRateLimitPlansAsync()).ToList();
         _waf = (await ControlService.GetWafRulesAsync()).ToList();
         _audit = (await ControlService.GetAuditEntriesAsync()).ToList();
+    }
+
+    private void OnEnabledChanged(WafRuleDto row, bool value)
+    {
+        var idx = _waf.FindIndex(r => ReferenceEquals(r, row));
+        if (idx >= 0)
+        {
+            _waf[idx] = row with { Enabled = value }; 
+            StateHasChanged();
+        }
     }
 }
