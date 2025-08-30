@@ -15,12 +15,20 @@ param summarizerImage string
 @description('Dashboard container image (e.g., <acr>.azurecr.io/dashboard:latest)')
 param dashboardImage string
 
-var acrName = '${namePrefix}acr'
+@description('ACR name to use (e.g., aegisacr)')
+param acrName string = '${namePrefix}acr'
+
+@description('Create the ACR if it does not exist')
+param createAcr bool = true
+
 var logAnalyticsName = '${namePrefix}-la'
 var keyVaultName = '${namePrefix}-kv'
 var envName = '${namePrefix}-env'
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
+//
+// ACR: crea solo se richiesto, altrimenti riferisci l’esistente
+//
+resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = if (createAcr) {
   name: acrName
   location: location
   sku: {
@@ -31,6 +39,17 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
   }
 }
 
+resource acrExisting 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' existing = if (!createAcr) {
+  name: acrName
+}
+
+var acrLoginServer = createAcr
+  ? acr.properties.loginServer
+  : reference(acrExisting.id, '2023-01-01-preview').loginServer
+
+//
+// Log Analytics
+//
 resource la 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsName
   location: location
@@ -41,22 +60,32 @@ resource la 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
+var laRef  = reference(la.id, la.apiVersion)
 var laKeys = listKeys(la.id, la.apiVersion)
 
-resource env 'Microsoft.App/managedEnvironments@2022-11-01' = {
+//
+// Managed Environment (API versione supportata)
+//
+resource env 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: envName
   location: location
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
-        customerId: la.properties.customerId
+        customerId: laRef.customerId
         sharedKey: laKeys.primarySharedKey
       }
     }
   }
+  dependsOn: [
+    la
+  ]
 }
 
+//
+// Key Vault (RBAC-enabled)
+//
 resource kv 'Microsoft.KeyVault/vaults@2023-02-01' = {
   name: keyVaultName
   location: location
@@ -71,6 +100,9 @@ resource kv 'Microsoft.KeyVault/vaults@2023-02-01' = {
   }
 }
 
+//
+// Container Apps (modulo) – passa acrLoginServer unificato
+//
 module gateway './modules/containerApp.bicep' = {
   name: 'gatewayApp'
   params: {
@@ -78,7 +110,7 @@ module gateway './modules/containerApp.bicep' = {
     image: gatewayImage
     environmentId: env.id
     external: true
-    acrLoginServer: acr.properties.loginServer
+    acrLoginServer: acrLoginServer
     keyVaultName: keyVaultName
   }
 }
@@ -90,7 +122,7 @@ module summarizer './modules/containerApp.bicep' = {
     image: summarizerImage
     environmentId: env.id
     external: false
-    acrLoginServer: acr.properties.loginServer
+    acrLoginServer: acrLoginServer
     keyVaultName: keyVaultName
   }
 }
@@ -102,18 +134,18 @@ module dashboard './modules/containerApp.bicep' = {
     image: dashboardImage
     environmentId: env.id
     external: true
-    acrLoginServer: acr.properties.loginServer
+    acrLoginServer: acrLoginServer
     keyVaultName: keyVaultName
   }
 }
 
 //
-// Role assignments (nomi deterministici; dipendono dagli outputs dei moduli per il principalId)
+// Role assignments (nomi deterministici)
+// NB: richiedono che chi esegue il deploy abbia almeno "User Access Administrator" o "Owner".
 //
-
 resource gatewayAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, 'gateway-acrpull')
-  scope: acr
+  scope: (createAcr ? acr : acrExisting)
   properties: {
     // AcrPull
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
@@ -135,7 +167,7 @@ resource gatewayKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 resource summarizerAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, 'summarizer-acrpull')
-  scope: acr
+  scope: (createAcr ? acr : acrExisting)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
     principalId: summarizer.outputs.principalId
@@ -155,7 +187,7 @@ resource summarizerKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 
 resource dashboardAcr 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(resourceGroup().id, 'dashboard-acrpull')
-  scope: acr
+  scope: (createAcr ? acr : acrExisting)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
     principalId: dashboard.outputs.principalId
