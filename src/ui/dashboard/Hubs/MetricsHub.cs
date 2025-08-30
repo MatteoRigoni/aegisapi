@@ -13,6 +13,7 @@ public class MetricsHub : Hub
         while (!token.IsCancellationRequested)
         {
             var metric = new MetricDto(
+                DateTime.UtcNow,
                 rnd.NextDouble() * 100, // Requests per second
                 rnd.NextDouble() * 8,   // UA entropy
                 rnd.Next(0, 20),        // Schema errors
