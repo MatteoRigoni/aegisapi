@@ -32,7 +32,6 @@
                     <MudChart @key="_rpsKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(rpsSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Requests/s", Data = GetData(rpsSamples) }
@@ -54,7 +53,6 @@
                     <MudChart @key="_uaKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(uaEntropySamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "UA Entropy", Data = GetData(uaEntropySamples) }
@@ -76,7 +74,6 @@
                     <MudChart @key="_schemaKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(schemaErrorSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "Schema Errors", Data = GetData(schemaErrorSamples) }
@@ -98,7 +95,6 @@
                     <MudChart @key="_wafKey"
                               ChartType="ChartType.Line"
                               Options="_opts"
-                              CustomPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(wafBlockSamples)"
                               ChartSeries="@(new List<ChartSeries> {
                                                             new() { Name = "WAF Blocks", Data = GetData(wafBlockSamples) }
@@ -117,7 +113,6 @@
 
 @code {
     private int _rpsKey, _uaKey, _schemaKey, _wafKey;
-    private readonly string[] _palette = new[] { "#ff6b6b", "#4d96ff", "#ffd93d", "#6bcb77" };
 
     private readonly List<string> labels = new();
     private readonly List<double> rpsSamples = new();
