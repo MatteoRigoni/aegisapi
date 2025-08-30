@@ -10,39 +10,6 @@
 <img src="docs/aegis_readme_banner_no_crop_v2.png" alt="AegisAPI banner" width="100%" />
 
 
-## Quick Start
-
-```bash
-# Run the Summarizer service (dev)
-cd src/ai/Summarizer
-dotnet run --urls http://localhost:5290
-
-# Run the gateway (in another terminal)
-cd src/gateway
-dotnet run --urls http://localhost:5000
-
-# Test endpoints
-curl http://localhost:5000/                             # Returns "AegisAPI Gateway up"
-curl http://localhost:5000/healthz                      # Returns 200 OK
-curl http://localhost:5000/api/ping                     # Public route
-curl -H "Authorization: Bearer <token>" http://localhost:5000/api/secure/ping  # Protected route (JWT)
-curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               # Protected route (API key)
-curl http://localhost:5000/metrics                      # Prometheus metrics
-```
-
-## Docker
-
-Run the gateway and summarizer with Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-The gateway will be available at [http://localhost:5000](http://localhost:5000)
-and the summarizer at [http://localhost:5290](http://localhost:5290).
-
-The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that returns a sample `IncidentBundle` for quick experiments.
-
 ## Backend configuration
 
 Backend service addresses and Summarizer settings are not set in `src/gateway/appsettings.json`.
@@ -87,5 +54,36 @@ Administrative CRUD endpoints live under `/cp/*` and include routes, rate limit 
 
 - **MTTR (Mean Time to Remediation)** < 15 minutes  
 
+## Quick Start
 
+```bash
+# Run the Summarizer service (dev)
+cd src/ai/Summarizer
+dotnet run --urls http://localhost:5290
+
+# Run the gateway (in another terminal)
+cd src/gateway
+dotnet run --urls http://localhost:5000
+
+# Test endpoints
+curl http://localhost:5000/                             # Returns "AegisAPI Gateway up"
+curl http://localhost:5000/healthz                      # Returns 200 OK
+curl http://localhost:5000/api/ping                     # Public route
+curl -H "Authorization: Bearer <token>" http://localhost:5000/api/secure/ping  # Protected route (JWT)
+curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               # Protected route (API key)
+curl http://localhost:5000/metrics                      # Prometheus metrics
+```
+
+## Docker
+
+Run the gateway and summarizer with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The gateway will be available at [http://localhost:5000](http://localhost:5000)
+and the summarizer at [http://localhost:5290](http://localhost:5290).
+
+The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that returns a sample `IncidentBundle` for quick experiments.
 
