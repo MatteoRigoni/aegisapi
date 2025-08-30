@@ -12,11 +12,11 @@
                   AutoFocus="true"
                   OnKeyDown="HandleInputKey" />
 
-    <!-- Indica il tipo T della lista -->
+    <!-- Specify the list item type T -->
     <MudList T="Incident" Dense="true">
         @foreach (var item in FilteredItems)
         {
-            <!-- Indica T anche sull'item; usa l'evento OnClick del componente -->
+            <!-- Specify T on the item and use the component's OnClick event -->
             <MudListItem T="Incident"
                          Value="@item"
                          OnClick="@(_ => Select(item))">
@@ -32,12 +32,12 @@
 
     private string? searchText;
 
-    // Esempio: adatta ai tuoi tipi/dati
+    // Example: adapt to your types/data
     private IEnumerable<Incident> FilteredItems { get; set; } = Enumerable.Empty<Incident>();
 
     private void Select(Incident item)
     {
-        // la tua logica
+        // your logic
         MudDialog.Close(DialogResult.Ok(item));
     }
 

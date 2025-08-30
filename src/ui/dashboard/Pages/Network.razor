@@ -2,10 +2,11 @@
 @inject INetworkService NetworkService
 @inject IJSRuntime JS
 
-<MudStack Direction="Column" Class="page-padding">
-    <h3>Network Map</h3>
-    <canvas id="networkCanvas" style="width:100%; height:500px;"></canvas>
-</MudStack>
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    This feature is not yet operational and will be available in the future.
+</MudAlert>
+<h3>Network Map</h3>
+<canvas id="networkCanvas" style="width:100%; height:500px;"></canvas>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)
