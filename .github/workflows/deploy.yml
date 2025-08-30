@@ -38,13 +38,6 @@ jobs:
         run: |
           az group create -n $RG -l $LOCATION
 
-      - name: Register resource providers
-        run: |
-          set -euxo pipefail
-          for p in Microsoft.App Microsoft.KeyVault Microsoft.ContainerRegistry Microsoft.OperationalInsights; do
-            az provider register -n $p --wait
-          done
-    
       - name: Compile Bicep to JSON
         run: |
           mkdir -p out
