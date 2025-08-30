@@ -1,0 +1,49 @@
+@using MudBlazor
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+
+@inject NavigationManager Nav
+@inject IIncidentService IncidentService
+
+<MudDialogContent>
+    <MudTextField @bind-Value="searchText"
+                  Placeholder="Search..."
+                  Immediate="true"
+                  AutoFocus="true"
+                  OnKeyDown="HandleInputKey" />
+
+    <!-- Specify the list item type T -->
+    <MudList T="Incident" Dense="true">
+        @foreach (var item in FilteredItems)
+        {
+            <!-- Specify T on the item and use the component's OnClick event -->
+            <MudListItem T="Incident"
+                         Value="@item"
+                         OnClick="@(_ => Select(item))">
+                @item.Title
+            </MudListItem>
+        }
+    </MudList>
+</MudDialogContent>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!; // v8
+
+    private string? searchText;
+
+    // Example: adapt to your types/data
+    private IEnumerable<Incident> FilteredItems { get; set; } = Enumerable.Empty<Incident>();
+
+    private void Select(Incident item)
+    {
+        // your logic
+        MudDialog.Close(DialogResult.Ok(item));
+    }
+
+    private void HandleInputKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && FilteredItems.Any())
+            Select(FilteredItems.First());
+    }
+}

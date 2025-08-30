@@ -1,0 +1,25 @@
+@page "/"
+@namespace Dashboard.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - AegisAPI</title>
+    <base href="~/" />
+    <link href="_content/MudBlazor/MudBlazor.min.css?v=8.11.0" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/4.2.5/gridstack.min.css" rel="stylesheet" />
+</head>
+<body>
+    <app>
+        <component type="typeof(App)" render-mode="ServerPrerendered" />
+    </app>
+
+    <script src="_framework/blazor.server.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js?v=8.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+    <script src="js/network.js"></script>
+  </body>
+</html>

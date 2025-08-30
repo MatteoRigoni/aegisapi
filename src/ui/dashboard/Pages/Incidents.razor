@@ -1,0 +1,100 @@
+@page "/incidents"
+@using System.Linq
+@inject IIncidentService IncidentService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudStack Direction="Column" Class="pa-4">
+    <MudStack Direction="Row" Spacing="2" Class="mb-4">
+        <MudTextField T="string"
+                      @bind-Value="searchString"
+                      Placeholder="Search"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" />
+
+        <MudSelect T="string" @bind-Value="statusFilter" Placeholder="Status" Clearable="true">
+            <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
+            @foreach (var s in StatusOptions)
+            {
+                <MudSelectItem T="string" Value="@s">@s</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudSelect T="string" @bind-Value="severityFilter" Placeholder="Severity" Clearable="true">
+            <MudSelectItem T="string" Value="@string.Empty">All</MudSelectItem>
+            @foreach (var sev in SeverityOptions)
+            {
+                <MudSelectItem T="string" Value="@sev">@sev</MudSelectItem>
+            }
+        </MudSelect>
+    </MudStack>
+
+    <MudTable T="Incident" Items="FilteredIncidents" Hover="true" Dense="true" OnRowClick="OnRowClick" Class="clickable-rows">
+        <HeaderContent>
+            <MudTh>Id</MudTh>
+            <MudTh>Title</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Severity</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Id">
+                <MudTooltip Text="@context.Summary">@context.Id</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Title">
+                <MudTooltip Text="@context.Summary">@context.Title</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Status">
+                <MudTooltip Text="@context.Summary">@context.Status</MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Severity">
+                <MudTooltip Text="@context.Summary">
+                    <MudChip T="string"
+                             Color="@GetSeverityColor(context.Severity)"
+                             Variant="Variant.Filled"
+                             Value="@context.Severity">
+                        @context.Severity
+                    </MudChip>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudStack>
+
+@code {
+    private IReadOnlyList<Incident> incidents = Array.Empty<Incident>();
+    private string searchString = string.Empty;
+    private string statusFilter = string.Empty;
+    private string severityFilter = string.Empty;
+
+    private IEnumerable<Incident> FilteredIncidents => incidents
+        .Where(i => string.IsNullOrWhiteSpace(searchString) || i.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        .Where(i => string.IsNullOrWhiteSpace(statusFilter) || i.Status == statusFilter)
+        .Where(i => string.IsNullOrWhiteSpace(severityFilter) || i.Severity == severityFilter);
+
+    private IEnumerable<string> StatusOptions => incidents.Select(i => i.Status).Distinct();
+    private IEnumerable<string> SeverityOptions => incidents.Select(i => i.Severity).Distinct();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            incidents = await IncidentService.GetIncidentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private Color GetSeverityColor(string severity) => severity?.ToLowerInvariant() switch
+    {
+        "critical" => Color.Error,
+        "high" => Color.Warning,
+        "medium" => Color.Info,
+        "low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private void OnRowClick(TableRowClickEventArgs<Incident> e)
+    => Nav.NavigateTo($"/incidents/{e.Item.Id}");
+}

@@ -1,0 +1,118 @@
+/* Hide scrollbars while preserving layout */
+html, body {
+    overflow: hidden;
+    margin: 0;
+    height: 100%;
+}
+
+/* Remove visual scrollbar in WebKit browsers */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Remove visual scrollbar in Firefox */
+html {
+    scrollbar-width: none;
+}
+
+/* Use theme colors so the card adapts to light and dark modes */
+.wow-card {
+    background: linear-gradient(135deg,
+            var(--mud-palette-primary),
+            var(--mud-palette-secondary),
+            var(--mud-palette-info));
+    background-size: 300% 300%;
+    color: var(--mud-palette-text-primary);
+    transition: transform 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    animation: gradientShift 6s ease infinite;
+}
+
+.wow-card:hover {
+    transform: scale(1.05) rotate(-1deg);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+}
+
+
+/* Background that responds to the current theme */
+.app-background {
+    background-color: var(--mud-palette-background);
+    color: var(--mud-palette-text-primary);
+    min-height: 100vh;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.mock-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: orange;
+    color: black;
+    text-align: center;
+    padding: 0.5rem 0;
+    font-weight: bold;
+    z-index: 1000;
+}
+
+
+/* Elegant cursive title without flickering */
+.cursive-title {
+    font-family: "Brush Script MT", cursive;
+    font-style: italic;
+    color: #ffffff !important; /* Ensure color is applied */
+    font-size: 1.8rem !important; /* Ensure font size is applied */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Add shadow for better visibility */
+}
+
+@media (min-width: 768px) {
+    .cursive-title {
+        font-size: 2rem !important; /* Medium screens */
+    }
+}
+
+@media (min-width: 1024px) {
+    .cursive-title {
+        font-size: 2.3rem !important; /* Large screens */
+    }
+}
+
+.network-link .mud-nav-link-icon {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Ensure the main content respects the drawer's width */
+.mud-main-content {
+    margin-left: 0;
+    margin-top: 20px;
+    transition: margin-left 0.3s ease;
+}
+
+.mud-drawer-open + .mud-main-content {
+    margin-left: 240px; /* Adjust based on the drawer's width */
+}
+
+@media (max-width: 768px) {
+    .mud-drawer-open + .mud-main-content {
+        margin-left: 0; /* Reset for smaller screens */
+    }
+}
+
+.page-padding {
+    padding: 16px; /* Adds light padding around the page content */
+}
+
+.full-width {
+    width: 100%;
+}
