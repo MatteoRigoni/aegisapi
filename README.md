@@ -1,13 +1,14 @@
 # AegisAPI – Secure API Gateway with AI Remediation
 
-
-
-**AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **OpenTelemetry observability** to keep your APIs safe, fast, and compliant.
-<img src="docs/aegis_readme_banner_no_crop_v2.png" alt="AegisAPI banner" width="100%" />
-
 [![CI – Build & Test](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/codeql.yml)
 [![SBOM](https://github.com/MatteoRigoni/aegisapi/actions/workflows/sbom.yml/badge.svg?branch=master)](https://github.com/MatteoRigoni/aegisapi/actions/workflows/sbom.yml)
+
+
+**AegisAPI** is a zero-trust API security gateway built on **.NET 8 + YARP**, with **AI anomaly detection** and **OpenTelemetry observability** to keep your APIs safe, fast, and compliant.
+
+<img src="docs/aegis_readme_banner_no_crop_v2.png" alt="AegisAPI banner" width="100%" />
+
 
 ## Quick Start
 
