@@ -6,26 +6,22 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  id-token: write    # necessario per OIDC
+  id-token: write
   contents: read
 
 env:
   RG: aegisapi-rg
   LOCATION: eastus
   PREFIX: aegis
-  # login server deterministico per l'ACR <prefix>acr
-  LOGIN_SERVER: ${{ env.PREFIX }}acr.azurecr.io
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout del codice
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2) Login in Azure via OIDC (usa i 3 secrets che hai creato)
       - name: Azure Login (OIDC)
         uses: azure/login@v1
         with:
@@ -33,27 +29,24 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 3) Info di contesto
       - name: Show Azure context
         run: |
           az account show
           az --version
 
-      # 4) Crea/aggiorna il Resource Group (idempotente)
       - name: Ensure Resource Group
         run: |
           az group create -n $RG -l $LOCATION
 
-      # 5a) Compila Bicep -> ARM JSON (aggira bug validate/what-if)
       - name: Compile Bicep to JSON
         run: |
           mkdir -p out
           az bicep build --file infra/main.bicep --outdir out
           ls -la out
 
-      # 5b) Validate sul JSON compilato
       - name: Validate compiled template
         run: |
+          LOGIN_SERVER="${PREFIX}acr.azurecr.io"
           az deployment group validate \
             -g $RG \
             --template-file out/main.json \
@@ -62,11 +55,11 @@ jobs:
                          summarizerImage=$LOGIN_SERVER/summarizer:latest \
                          dashboardImage=$LOGIN_SERVER/dashboard:latest
 
-      # 5c) Deploy reale (debug attivo)
       - name: Deploy compiled template (apply with debug)
         env:
           AZURE_CORE_COLLECT_TELEMETRY: "false"
         run: |
+          LOGIN_SERVER="${PREFIX}acr.azurecr.io"
           az deployment group create \
             -g $RG \
             --template-file out/main.json \
@@ -76,7 +69,6 @@ jobs:
                          dashboardImage=$LOGIN_SERVER/dashboard:latest \
             --debug
 
-      # 6) Concedi al workflow il ruolo dati su Key Vault (per poter fare secret set)
       - name: Grant Key Vault data-plane role to OIDC app
         run: |
           KEYVAULT_NAME="${PREFIX}-kv"
@@ -87,13 +79,11 @@ jobs:
             --scope "$KV_ID" \
           || true
 
-      # 7) Imposta il secret in Key Vault (consumato dalle app via KeyVault reference)
       - name: Seed Key Vault secret
         run: |
           KEYVAULT_NAME="${PREFIX}-kv"
           az keyvault secret set --vault-name "$KEYVAULT_NAME" --name sample-secret --value "changeme-from-gha"
 
-      # 8) Build & push immagini su ACR (ACR si chiama sempre <prefix>acr)
       - name: Build and Push Images
         run: |
           ACR_NAME="${PREFIX}acr"
@@ -101,14 +91,13 @@ jobs:
           az acr build -r "$ACR_NAME" -t summarizer:latest path/to/summarizer
           az acr build -r "$ACR_NAME" -t dashboard:latest path/to/dashboard
 
-      # 9) Aggiorna le Container Apps alle nuove immagini (nuova revisione, ricarica secrets)
       - name: Roll apps to new images & refresh secrets
         run: |
+          LOGIN_SERVER="${PREFIX}acr.azurecr.io"
           az containerapp update -n "${PREFIX}-gateway" -g $RG --image "$LOGIN_SERVER/gateway:latest"
           az containerapp update -n "${PREFIX}-summarizer" -g $RG --image "$LOGIN_SERVER/summarizer:latest"
           az containerapp update -n "${PREFIX}-dashboard" -g $RG --image "$LOGIN_SERVER/dashboard:latest"
 
-      # 10) Stampa gli endpoint pubblici (gateway, dashboard)
       - name: Show endpoints
         run: |
           GATEWAY_FQDN=$(az containerapp show -n "${PREFIX}-gateway" -g $RG --query properties.configuration.ingress.fqdn -o tsv)
