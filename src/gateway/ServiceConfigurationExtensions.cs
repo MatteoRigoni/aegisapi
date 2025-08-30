@@ -124,7 +124,7 @@ public static class ServiceConfigurationExtensions
         })
         .AddJwtBearer(options =>
         {
-            var jwtKey = string.IsNullOrWhiteSpace(configuration["Auth:JwtKey"]) ? "dev-secret" : configuration["Auth:JwtKey"];
+            var jwtKey = string.IsNullOrWhiteSpace(configuration["Auth:JwtKey"]) ? "dev-secret" : configuration["Auth:JwtKey"]!;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = false,

@@ -67,7 +67,7 @@
     private string severityFilter = string.Empty;
 
     private IEnumerable<Incident> FilteredIncidents => incidents
-        .Where(i => string.IsNullOrWhiteSpace(searchString) || i.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        .Where(i => string.IsNullOrWhiteSpace(searchString) || (i.Title?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(i => string.IsNullOrWhiteSpace(statusFilter) || i.Status == statusFilter)
         .Where(i => string.IsNullOrWhiteSpace(severityFilter) || i.Severity == severityFilter);
 

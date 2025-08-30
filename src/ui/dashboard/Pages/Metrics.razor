@@ -30,7 +30,7 @@
                 @if (IsRenderable(rpsSamples))
                 {
                     <MudChart @key="_rpsKey"
-                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              ChartType="ChartType.Line"
                               Options="_opts"
                               ChartPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(rpsSamples)"
@@ -52,7 +52,7 @@
                 @if (IsRenderable(uaEntropySamples))
                 {
                     <MudChart @key="_uaKey"
-                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              ChartType="ChartType.Line"
                               Options="_opts"
                               ChartPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(uaEntropySamples)"
@@ -74,7 +74,7 @@
                 @if (IsRenderable(schemaErrorSamples))
                 {
                     <MudChart @key="_schemaKey"
-                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              ChartType="ChartType.Line"
                               Options="_opts"
                               ChartPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(schemaErrorSamples)"
@@ -96,7 +96,7 @@
                 @if (IsRenderable(wafBlockSamples))
                 {
                     <MudChart @key="_wafKey"
-                              ChartType="@(_useBars ? ChartType.Bar : ChartType.Line)"
+                              ChartType="ChartType.Line"
                               Options="_opts"
                               ChartPalette="@_palette"
                               XAxisLabels="@GetLabelsFor(wafBlockSamples)"
@@ -118,7 +118,6 @@
 @code {
     private int _rpsKey, _uaKey, _schemaKey, _wafKey;
     private readonly string[] _palette = new[] { "#ff6b6b", "#4d96ff", "#ffd93d", "#6bcb77" };
-    private bool _useBars;
 
     private readonly List<string> labels = new();
     private readonly List<double> rpsSamples = new();
