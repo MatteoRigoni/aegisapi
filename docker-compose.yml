@@ -1,0 +1,25 @@
+version: '3.9'
+services:
+  summarizer:
+    build:
+      context: .
+      dockerfile: src/ai/Summarizer/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5290
+    ports:
+      - "5290:5290"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: src/gateway/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      Summarizer__BaseUrl: http://summarizer:5290
+      Summarizer__InternalKey: dev
+      Auth__JwtKey: 6d9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18703d
+      Auth__ApiKeyHash: 7e9f8fd111802be56c379d597842e29b2cebd35ff2133d431a49fa556a18704e
+    ports:
+      - "5000:5000"
+    depends_on:
+      - summarizer

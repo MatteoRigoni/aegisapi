@@ -30,6 +30,17 @@ curl -H "X-API-Key: <key>" http://localhost:5000/api/secure/ping               #
 curl http://localhost:5000/metrics                      # Prometheus metrics
 ```
 
+## Docker
+
+Run the gateway and summarizer with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The gateway will be available at [http://localhost:5000](http://localhost:5000)
+and the summarizer at [http://localhost:5290](http://localhost:5290).
+
 The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that returns a sample `IncidentBundle` for quick experiments.
 
 ## Backend configuration
