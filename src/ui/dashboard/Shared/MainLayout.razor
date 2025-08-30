@@ -19,7 +19,7 @@
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
             <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Alpha</MudChip>
         </MudAppBar>
-        <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
+        <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniWidth="56px">
             <NavMenu />
         </MudDrawer>
         <MudMainContent Class="app-background mud-main-content">
