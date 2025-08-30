@@ -112,3 +112,7 @@ html {
 .page-padding {
     padding: 16px; /* Adds light padding around the page content */
 }
+
+.full-width {
+    width: 100%;
+}

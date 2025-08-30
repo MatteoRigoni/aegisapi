@@ -9,9 +9,8 @@ using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMudServices();
-builder.Services.AddMudBlazorResizeListener(); // Register IBreakpointService
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddServerSideBlazor().AddCircuitOptions(o => { o.DetailedErrors = true; }); 
 builder.Services.AddSignalR();
 builder.Services.AddScoped<Dashboard.Services.MudThemeManager>();
 

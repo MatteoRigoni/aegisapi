@@ -4,7 +4,7 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudStack Direction="Column" Class="page-padding">
+<MudStack Direction="Column" Class="pa-4">
     <MudStack Direction="Row" Spacing="2" Class="mb-4">
         <MudTextField T="string"
                       @bind-Value="searchString"
@@ -29,7 +29,7 @@
         </MudSelect>
     </MudStack>
 
-    <MudTable Items="FilteredIncidents" Hover="true" Dense="true" RowClick="OnRowClick">
+    <MudTable T="Incident" Items="FilteredIncidents" Hover="true" Dense="true" OnRowClick="OnRowClick" Class="clickable-rows">
         <HeaderContent>
             <MudTh>Id</MudTh>
             <MudTh>Title</MudTh>
@@ -48,7 +48,12 @@
             </MudTd>
             <MudTd DataLabel="Severity">
                 <MudTooltip Text="@context.Summary">
-                    <MudChip Color="@GetSeverityColor(context.Severity)" Variant="Variant.Filled">@context.Severity</MudChip>
+                    <MudChip T="string"
+                             Color="@GetSeverityColor(context.Severity)"
+                             Variant="Variant.Filled"
+                             Value="@context.Severity">
+                        @context.Severity
+                    </MudChip>
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
@@ -91,5 +96,5 @@
     };
 
     private void OnRowClick(TableRowClickEventArgs<Incident> e)
-        => Nav.NavigateTo($"/incidents/{e.Item.Id}");
+    => Nav.NavigateTo($"/incidents/{e.Item.Id}");
 }

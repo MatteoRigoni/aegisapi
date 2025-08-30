@@ -1,0 +1,4 @@
+/* Add this to make rows in the table appear clickable */
+.clickable-rows tbody tr:hover {
+    cursor: pointer;
+}

@@ -11,15 +11,25 @@ public class MudThemeManager
     public MudThemeManager(IJSRuntime js)
     {
         _js = js;
-        LightTheme = new MudTheme();
-        DarkTheme = new MudTheme
+
+        LightTheme = new MudTheme
         {
-            Palette = new PaletteDark
+            PaletteLight = new PaletteLight
             {
-                Primary = Colors.Blue.Lighten2,
+                Primary = Colors.Blue.Lighten1,
                 Secondary = Colors.Pink.Accent2
             }
         };
+
+        DarkTheme = new MudTheme
+        {
+            PaletteDark = new PaletteDark
+            {
+                Primary = Colors.Blue.Lighten1,
+                Secondary = Colors.Pink.Accent2
+            }
+        };
+
         CurrentTheme = DarkTheme;
         IsDarkMode = true;
     }

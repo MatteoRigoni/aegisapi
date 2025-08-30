@@ -4,20 +4,21 @@
 @using Microsoft.Extensions.Configuration
 
 @inject MudThemeManager ThemeManager
-@inject IBreakpointService BreakpointService
+@inject IBrowserViewportService BrowserViewportService
 
 <MudThemeProvider Theme="@ThemeManager.CurrentTheme" IsDarkMode="@ThemeManager.IsDarkMode" />
+<MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div tabindex="0" @onkeydown="HandleKey" @onkeydown:preventDefault="true" @onkeydown:stopPropagation="true">
+<div tabindex="0">
     <MudLayout>
         <MudAppBar Color="Color.Primary">
-            <MudIconButton Icon="@Icons.Material.Filled.Menu" Class="hamburger-icon" OnClick="ToggleNavMenu" />
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Dark" OnClick="ToggleNavMenu" />
             <span class="cursive-title">Aegis Dashboard</span>
             <MudSpacer />
             <MudIconButton Icon="@(ThemeManager.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="ToggleTheme" />
-            <MudChip Color="Color.Error" Variant="Variant.Filled">ALPHA</MudChip>
+            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Alpha</MudChip>
         </MudAppBar>
         <MudDrawer @bind-Open="isNavMenuOpen" Variant="DrawerVariant.Mini" ClipMode="DrawerClipMode.Always" MiniVariantWidth="56px">
             <NavMenu />
@@ -28,7 +29,7 @@
     </MudLayout>
     @if (UseMocks)
     {
-        <div class="mock-banner">MOCK MODE</div>
+        <div class="mock-banner full-width">MOCK MODE</div>
     }
 </div>
 
@@ -43,19 +44,20 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            var breakpoint = await BreakpointService.GetBreakpoint();
-            isNavMenuOpen = breakpoint >= Breakpoint.Md;
-            breakpointSubscription = BreakpointService.Subscribe(bp =>
-            {
-                isNavMenuOpen = bp >= Breakpoint.Md;
-                InvokeAsync(StateHasChanged);
-            });
+        if (!firstRender) return;
 
-            await ThemeManager.InitializeAsync();
-            StateHasChanged();
-        }
+        var bp = await BrowserViewportService.GetCurrentBreakpointAsync();
+        isNavMenuOpen = bp >= Breakpoint.Md;
+
+        await ThemeManager.InitializeAsync();
+        StateHasChanged();
+    }
+
+    private Task OnBreakpointChanged(Breakpoint bp)
+    {
+        isNavMenuOpen = bp >= Breakpoint.Md;
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private async Task ToggleTheme()
@@ -95,8 +97,7 @@
     {
         var options = new DialogOptions
         {
-            CloseOnEscapeKey = true,
-            DisableBackdropClick = true
+            CloseOnEscapeKey = true
         };
 
         Dialog.Show<SearchDialog>("Command Palette", options);
