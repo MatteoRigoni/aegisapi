@@ -5,7 +5,7 @@
 @inject NavigationManager Nav
 @inject IIncidentService IncidentService
 
-<DialogContent>
+<div>
     <MudTextField @bind-Value="searchText"
                   Placeholder="Search..."
                   Immediate="true"
@@ -24,7 +24,7 @@
             </MudListItem>
         }
     </MudList>
-</DialogContent>
+</div>
 
 @code {
     [CascadingParameter]
