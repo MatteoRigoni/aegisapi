@@ -1,0 +1,56 @@
+@page "/ai"
+@inject ISummarizerService SummarizerService
+@inject ISnackbar Snackbar
+
+<h3>AI Summary Demo</h3>
+
+<MudCard Class="pa-4">
+    <MudButton Color="Color.Primary" OnClick="GenerateSummary" Disabled="loading">Generate Summary</MudButton>
+</MudCard>
+
+@if (summary is not null)
+{
+    <MudCard Class="pa-4 mt-4">
+        <MudText Typo="Typo.h6">AI Insights</MudText>
+        <MudAlert Severity="Severity.Info">
+            <div>@summary.Summary</div>
+            @if (summary.SuggestedPolicyPatch is not null)
+            {
+                <div>Patch: @summary.SuggestedPolicyPatch.Rule</div>
+            }
+            <div>Confidence: @summary.Confidence.ToString("P0")</div>
+        </MudAlert>
+    </MudCard>
+}
+
+@code {
+    private SummaryResponse? summary;
+    private bool loading;
+
+    private async Task GenerateSummary()
+    {
+        loading = true;
+        try
+        {
+            var ev = new FeatureEventLite(DateTimeOffset.UtcNow, "demo-client", "/demo", 500, false, 1, 0.5);
+            var bundle = new IncidentBundle(
+                "dev",
+                "Demo",
+                "Generated from UI",
+                new [] { ev },
+                new Dictionary<string,double>{{"rps",1}},
+                new Dictionary<string,int>{{"/demo",1}},
+                null
+            );
+            summary = await SummarizerService.SummarizeAsync(bundle);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}
