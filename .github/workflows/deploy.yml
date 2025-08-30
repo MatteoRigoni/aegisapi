@@ -105,3 +105,13 @@ jobs:
           DASHBOARD_FQDN=$(az containerapp show -n "${PREFIX}-dashboard" -g $RG --query properties.configuration.ingress.fqdn -o tsv)
           echo "Gateway:   https://${GATEWAY_FQDN}"
           echo "Dashboard: https://${DASHBOARD_FQDN}"
+
+      - name: Grant Key Vault data-plane role to OIDC app
+        run: |
+           KEYVAULT_NAME="${PREFIX}-kv"
+           KV_ID=$(az keyvault show -n "$KEYVAULT_NAME" --query id -o tsv)
+           # Ruolo dati: Key Vault Secrets Officer (consente SET/GET/DELETE segreti)
+           az role assignment create \
+             --assignee ${{ secrets.AZURE_CLIENT_ID }} \
+             --role "Key Vault Secrets Officer" \
+             --scope "$KV_ID"
