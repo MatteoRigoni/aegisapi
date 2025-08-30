@@ -4,7 +4,6 @@ param environmentId string
 param external bool
 param acrLoginServer string
 param keyVaultName string
-@allowed([80, 8080])
 param targetPort int = 8080
 
 resource app 'Microsoft.App/containerApps@2023-05-01' = {
@@ -29,7 +28,7 @@ resource app 'Microsoft.App/containerApps@2023-05-01' = {
       secrets: [
         {
           name: 'sample-secret'
-          keyVaultUrl: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/sample-secret'
+          keyVaultUrl: 'https://${keyVaultName}.vault.azure.net/secrets/sample-secret'
           identity: 'system'
         }
       ]
@@ -39,10 +38,6 @@ resource app 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: name
           image: image
-          resources: {
-            cpu: 0.5
-            memory: '1Gi'
-          }
           env: [
             {
               name: 'SAMPLE_SECRET'
@@ -51,13 +46,9 @@ resource app 'Microsoft.App/containerApps@2023-05-01' = {
           ]
         }
       ]
-      scale: {
-        minReplicas: 1
-        maxReplicas: 3
-      }
     }
   }
 }
 
 output principalId string = app.identity.principalId
-output fqdn string = app.properties.configuration.ingress?.fqdn
+output fqdn string = app.properties.configuration.ingress.fqdn
