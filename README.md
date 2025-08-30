@@ -19,7 +19,7 @@ dotnet run --urls http://localhost:5290
 
 # Run the gateway (in another terminal)
 cd src/gateway
-dotnet run
+dotnet run --urls http://localhost:5000
 
 # Test endpoints
 curl http://localhost:5000/                             # Returns "AegisAPI Gateway up"
@@ -34,8 +34,8 @@ The Summarizer exposes `POST /ai/summarize` and a `GET /seed/logs` helper that r
 
 ## Backend configuration
 
-Backend service addresses are not set in `src/gateway/appsettings.json`.
-In production these values must be provided via environment variables or managed dynamically through the Control Plane.
+Backend service addresses and Summarizer settings are not set in `src/gateway/appsettings.json`.
+Provide them via environment variables (e.g. `Summarizer:BaseUrl`, `Summarizer:InternalKey`) or manage them dynamically through the Control Plane.
 
 ## Authentication
 
@@ -50,7 +50,7 @@ AegisAPI supports two authentication modes:
 
 - 🚦 **Rate Limiting** with per-client token bucket and plan-aware limits
 
-- 📑 **Schema Validation** for REST requests via OpenAPI/JSON Schema
+- 📑 **Schema Validation** for request and response bodies via JSON Schema
 
 - 🛡 **WAF Protections** with regex checks for path traversal, SQLi, XSS, and SSRF
 
