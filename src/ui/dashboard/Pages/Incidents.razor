@@ -4,8 +4,8 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
-<MudStack Row="false" Class="pa-4">
-    <MudStack Row="true" Spacing="2" Class="mb-4">
+<MudStack Class="pa-4">
+    <MudStack Row Spacing="2" Class="mb-4">
         <MudTextField T="string"
                       @bind-Value="searchString"
                       Placeholder="Search"
@@ -38,21 +38,21 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Id">
-                <MudTooltip Text="@context.Summary">@context.Id</MudTooltip>
+                <MudTooltip Text="@((string?)context.Summary ?? string.Empty)">@context.Id</MudTooltip>
             </MudTd>
             <MudTd DataLabel="Title">
-                <MudTooltip Text="@context.Summary">@context.Title</MudTooltip>
+                <MudTooltip Text="@((string?)context.Summary ?? string.Empty)">@((string?)context.Title ?? "—")</MudTooltip>
             </MudTd>
             <MudTd DataLabel="Status">
-                <MudTooltip Text="@context.Summary">@context.Status</MudTooltip>
+                <MudTooltip Text="@((string?)context.Summary ?? string.Empty)">@((string?)context.Status ?? "—")</MudTooltip>
             </MudTd>
             <MudTd DataLabel="Severity">
-                <MudTooltip Text="@context.Summary">
+                <MudTooltip Text="@((string?)context.Summary ?? string.Empty)">
                     <MudChip T="string"
                              Color="@GetSeverityColor(context.Severity)"
                              Variant="Variant.Filled"
-                             Value="@context.Severity">
-                        @context.Severity
+                             Value="@(context.Severity ?? string.Empty)">
+                        @(context.Severity ?? "—")
                     </MudChip>
                 </MudTooltip>
             </MudTd>
@@ -68,11 +68,18 @@
 
     private IEnumerable<Incident> FilteredIncidents => incidents
         .Where(i => string.IsNullOrWhiteSpace(searchString) || (i.Title?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false))
-        .Where(i => string.IsNullOrWhiteSpace(statusFilter) || i.Status == statusFilter)
-        .Where(i => string.IsNullOrWhiteSpace(severityFilter) || i.Severity == severityFilter);
+        .Where(i => string.IsNullOrWhiteSpace(statusFilter) || string.Equals(i.Status, statusFilter, StringComparison.OrdinalIgnoreCase))
+        .Where(i => string.IsNullOrWhiteSpace(severityFilter) || string.Equals(i.Severity, severityFilter, StringComparison.OrdinalIgnoreCase));
 
-    private IEnumerable<string> StatusOptions => incidents.Select(i => i.Status).Distinct();
-    private IEnumerable<string> SeverityOptions => incidents.Select(i => i.Severity).Distinct();
+    private IEnumerable<string> StatusOptions =>
+        incidents.Select(i => i.Status)
+                 .Where(s => !string.IsNullOrWhiteSpace(s))
+                 .Distinct(StringComparer.OrdinalIgnoreCase)!;
+
+    private IEnumerable<string> SeverityOptions =>
+        incidents.Select(i => i.Severity)
+                 .Where(s => !string.IsNullOrWhiteSpace(s))
+                 .Distinct(StringComparer.OrdinalIgnoreCase)!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -86,7 +93,7 @@
         }
     }
 
-    private Color GetSeverityColor(string severity) => severity?.ToLowerInvariant() switch
+    private Color GetSeverityColor(string? severity) => severity?.ToLowerInvariant() switch
     {
         "critical" => Color.Error,
         "high" => Color.Warning,
@@ -96,5 +103,8 @@
     };
 
     private void OnRowClick(TableRowClickEventArgs<Incident> e)
-    => Nav.NavigateTo($"/incidents/{e.Item.Id}");
+    {
+        if (e?.Item is null) return;
+        Nav.NavigateTo($"/incidents/{e.Item.Id}");
+    }
 }
